@@ -60,7 +60,7 @@ function assetUrl(relativePath) {
   if (window.location.protocol === "file:") {
     return "../../修改后版本/第二步_图片与解析优化版/" + relativePath.split("/").map(encodeURIComponent).join("/");
   }
-  return "/asset/" + relativePath.split("/").map(encodeURIComponent).join("/");
+  return "asset/" + relativePath.split("/").map(encodeURIComponent).join("/");
 }
 
 async function loadQuestionBank() {
