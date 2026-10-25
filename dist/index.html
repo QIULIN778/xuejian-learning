@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#123d38" />
+    <title>穴见 · 针灸 AI 学习平台</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="主导航">
+        <div class="brand-lockup">
+          <div class="brand-mark">穴</div>
+          <div>
+            <div class="brand-name">穴见</div>
+            <div class="brand-subtitle">针灸 AI 学习平台</div>
+          </div>
+        </div>
+
+        <div class="role-switch" aria-label="入口切换">
+          <button class="role-button active" data-role="student">学生入口</button>
+          <button class="role-button" data-role="teacher">教师看板</button>
+        </div>
+
+        <div class="nav-label">学习空间</div>
+        <nav class="primary-nav">
+          <button class="nav-item active" data-view="practice"><span class="nav-icon">✦</span><span>识图学习</span><span class="nav-pill">309</span></button>
+          <button class="nav-item" data-view="review"><span class="nav-icon">↺</span><span>错题复习</span><span class="nav-pill" id="wrong-count">0</span></button>
+          <button class="nav-item" data-view="points"><span class="nav-icon">⌖</span><span>穴位连点看</span><span class="coming-soon">框架</span></button>
+          <button class="nav-item" data-view="match"><span class="nav-icon">◆</span><span>穴位消消乐</span><span class="coming-soon">框架</span></button>
+        </nav>
+
+        <div class="nav-label meridian-label">经脉目录</div>
+        <div class="meridian-list" id="meridian-list"></div>
+
+        <div class="sidebar-footer">
+          <div class="version-chip"><span class="status-dot"></span>本地原型 · 0.1</div>
+          <div class="footer-copy">正式题库：原始主图 + 3 张补图<br />AI 负责辅助记忆与解析</div>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div class="breadcrumb"><span>学习空间</span><span class="breadcrumb-slash">/</span><strong id="page-context">识图学习</strong></div>
+          <div class="topbar-actions">
+            <div class="data-status"><span class="status-dot"></span><span>题库已同步</span></div>
+            <button class="avatar-button" title="本地学生账号">学</button>
+          </div>
+        </header>
+
+        <section id="view-root" class="view-root" aria-live="polite"></section>
+      </main>
+    </div>
+    <script src="static-data.js" defer></script>
+    <script src="app.js" defer></script>
+  </body>
+</html>
