@@ -388,3 +388,181 @@ h1 { margin: 9px 0 7px; font-size: clamp(28px, 3vw, 40px); letter-spacing: -.04e
 .special-rules { margin: 18px 0; padding: 14px 18px; border-radius: 14px; background: #eef6f1; color: #275f55; }
 .special-rules summary { cursor: pointer; font-weight: 700; }
 .special-rules ol { margin: 10px 0 0; padding-left: 22px; line-height: 1.65; }
+
+/* 穴见有方 · one library, three distinct study rooms */
+:root {
+  --ink: #26332f;
+  --ink-soft: #67736b;
+  --jade: #385e50;
+  --jade-deep: #1b2b27;
+  --jade-pale: #edf1e9;
+  --coral: #b6654e;
+  --gold: #bc8d45;
+  --paper: #f6f3ec;
+  --card: #fffefa;
+  --line: #e4dfd3;
+  --shadow: 0 18px 38px rgba(36, 47, 39, .08);
+}
+body { background: var(--paper); transition: background-color .25s ease; }
+body::before { opacity: .14; background-size: 24px 24px; }
+button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible {
+  outline: 3px solid #e5ae64; outline-offset: 3px;
+}
+.sidebar { background: #1e2b29; border-right: 1px solid rgba(255,255,255,.07); padding-top: 24px; }
+.brand-lockup { gap: 13px; padding-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,.11); margin-bottom: 23px; }
+.brand-mark { width: 46px; height: 46px; border-radius: 10px; background: #e5bb78; color: #24302a; font-family: "Noto Serif SC", "Songti SC", "SimSun", serif; font-size: 25px; box-shadow: inset 0 0 0 3px rgba(255,255,255,.28), 0 8px 18px rgba(0,0,0,.18); }
+.brand-name { font-family: "Noto Serif SC", "Songti SC", "SimSun", serif; letter-spacing: .12em; font-size: 21px; }
+.brand-subtitle { letter-spacing: .1em; color: #c1c5b4; }
+.role-switch { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.07); }
+.role-button.active { background: #e8dcc3; color: #26342f; }
+.nav-label { color: #aab7ad; font-weight: 700; }
+.nav-item { border: 1px solid transparent; min-height: 47px; }
+.nav-item.active { color: #f8f4e9; background: #405b4d; border-color: rgba(255,255,255,.12); box-shadow: inset 3px 0 #e6bc7a, 0 8px 18px rgba(0,0,0,.12); }
+.nav-item.active .nav-pill { color: #f4d59d; background: rgba(255,255,255,.12); }
+.nav-icon { font-size: 18px; }
+.meridian-button.active { background: rgba(230,188,122,.13); color: #f7d9a4; }
+.topbar { background: rgba(255,254,249,.88); border-bottom-color: #e8e2d8; }
+.breadcrumb { letter-spacing: .02em; }
+.breadcrumb > span:first-child { font-family: "Noto Serif SC", "Songti SC", "SimSun", serif; font-weight: 700; color: #7d8e7e; }
+.data-status { padding: 7px 11px; border: 1px solid #e0e5dc; border-radius: 999px; background: #f5f8f1; }
+.avatar-button { border-radius: 10px; background: #e8dcc3; border-color: #e8dcc3; color: #26342f; }
+.view-root { padding-top: 31px; }
+.eyebrow { font-size: 11px; letter-spacing: .22em; }
+.primary-button { background: #335f4b; }
+.primary-button:hover { background: #254b3c; }
+.select-control { min-height: 42px; }
+.feature-orbit { display: none; }
+.table-card { overflow-x: auto; }
+
+/* Room one: a quiet illustrated atlas for image recognition and review. */
+body[data-view="practice"], body[data-view="review"] { --coral: #a95743; --jade: #626f4d; --jade-pale: #f0f2e7; --paper: #f7f3ea; --card: #fffcf5; }
+body[data-view="practice"] .welcome-row, body[data-view="review"] .welcome-row {
+  position: relative; overflow: hidden; align-items: center; padding: 30px 36px;
+  border: 1px solid #e7dcc9; border-radius: 8px 32px 8px 32px;
+  background: linear-gradient(108deg, #fffdf7 0%, #f7eddd 72%, #ecdbc0 100%);
+  box-shadow: 0 18px 40px rgba(100,75,45,.08);
+}
+body[data-view="practice"] .welcome-row::after, body[data-view="review"] .welcome-row::after {
+  content: "經 · 穴"; position: absolute; right: 20px; bottom: -27px; color: rgba(136,94,55,.11);
+  font: 900 112px/1 "Noto Serif SC", "Songti SC", "SimSun", serif; white-space: nowrap; pointer-events: none;
+}
+body[data-view="practice"] .welcome-row > *, body[data-view="review"] .welcome-row > * { position: relative; z-index: 1; }
+body[data-view="practice"] .eyebrow, body[data-view="review"] .eyebrow { color: #9d644d; }
+body[data-view="practice"] h1, body[data-view="review"] h1 { font-family: "Noto Serif SC", "Songti SC", "SimSun", serif; font-weight: 800; letter-spacing: .02em; font-size: clamp(29px, 3vw, 44px); }
+body[data-view="practice"] .lead, body[data-view="review"] .lead { max-width: 590px; }
+body[data-view="practice"] .question-card, body[data-view="review"] .question-card { border-radius: 8px 25px 8px 25px; padding: 26px; border-color: #e8decd; }
+body[data-view="practice"] .image-stage, body[data-view="review"] .image-stage { border-radius: 5px; border: 8px solid #f5efdf; outline: 1px solid #dac9ad; background: #f9f5e9; }
+body[data-view="practice"] .question-prompt h2, body[data-view="review"] .question-prompt h2 { font: 700 20px/1.4 "Noto Serif SC", "Songti SC", "SimSun", serif; }
+body[data-view="practice"] .option-button, body[data-view="review"] .option-button { border-radius: 5px 16px 5px 16px; min-height: 64px; background: #fffdf8; border-color: #e7dfcf; font-size: 15px; }
+body[data-view="practice"] .option-button:hover, body[data-view="review"] .option-button:hover { background: #faf0e0; border-color: #c7a784; }
+body[data-view="practice"] .option-letter, body[data-view="review"] .option-letter { border-radius: 50%; background: #f0e7d7; color: #8f664b; border: 0; }
+body[data-view="practice"] .side-card, body[data-view="review"] .side-card { border-radius: 8px 22px 8px 22px; border-color: #e8decd; }
+body[data-view="practice"] .side-card h3, body[data-view="review"] .side-card h3 { font-family: "Noto Serif SC", "Songti SC", "SimSun", serif; }
+body[data-view="practice"] .ring, body[data-view="review"] .ring { box-shadow: inset 0 0 0 1px #e7ddc9; }
+
+/* Room two: a night chart for tracing meridians and matching identities. */
+body[data-view="points"] { --paper: #e8efed; --card: #f8fcfa; --jade: #1e837d; --jade-pale: #e3f2ee; --ink: #173b3c; --ink-soft: #557071; --line: #d9e6e1; }
+body[data-view="points"] .view-root { max-width: 1160px; }
+body[data-view="points"] .special-hero { min-height: 210px; padding: 38px 46px; border: 0; border-radius: 28px 8px 28px 8px; color: #ecfffb; background: radial-gradient(circle at 79% 37%, rgba(98,222,201,.28), transparent 17%), radial-gradient(circle at 91% 73%, rgba(174,205,222,.18), transparent 18%), linear-gradient(120deg, #092e3d, #134951 68%, #0b3848); box-shadow: 0 24px 42px rgba(10,55,65,.2); }
+body[data-view="points"] .special-hero::before { content: ""; position: absolute; inset: 0; opacity: .48; background-image: radial-gradient(#b4e7db 1px, transparent 1.5px); background-size: 42px 42px; mask-image: linear-gradient(90deg, transparent 25%, #000); }
+body[data-view="points"] .special-hero::after { width: 300px; height: 300px; right: -100px; top: -95px; border: 1px solid rgba(207,245,237,.28); box-shadow: 0 0 0 36px rgba(201,235,230,.06), 0 0 0 82px rgba(201,235,230,.04); background: transparent; filter: none; }
+body[data-view="points"] .special-hero > div { position: relative; z-index: 1; }
+body[data-view="points"] .special-hero .eyebrow { color: #99dccd; }
+body[data-view="points"] .special-hero h2 { font: 800 clamp(30px, 3vw, 43px)/1.2 "Noto Serif SC", "Songti SC", "SimSun", serif; letter-spacing: .04em; }
+body[data-view="points"] .special-hero p { color: #cae3df; font-size: 14px; }
+body[data-view="points"] .special-rules { background: #e0eeeb; border: 1px solid #c5ddda; color: #285960; border-radius: 6px 20px 6px 20px; }
+body[data-view="points"] .special-controls { padding: 18px 20px; background: #f8fcfa; border: 1px solid #d5e4df; border-radius: 18px; }
+body[data-view="points"] .special-instruction { padding-left: 15px; border-left: 3px solid #68b4a5; }
+body[data-view="points"] .game-status { display: inline-block; padding: 10px 17px; color: #d7f7ee; background: #114957; border-radius: 999px; font-weight: 800; }
+body[data-view="points"] .special-link-board { gap: 12px; padding: 28px; min-height: 360px; border: 8px solid #123f4e; border-radius: 24px; background: radial-gradient(circle at 60% 40%, rgba(97,209,186,.14), transparent 40%), #0f3543; box-shadow: 0 24px 42px rgba(13,57,70,.18), inset 0 0 0 1px rgba(255,255,255,.18); }
+body[data-view="points"] .special-link-board .special-tile { min-height: 78px; border-radius: 12px; border: 1px solid #8dbab5; background: linear-gradient(145deg, #f3fcf9, #dceee9); color: #164b4e; box-shadow: 0 6px 0 #78a9a4, 0 12px 17px rgba(0,0,0,.16); font-size: 15px; }
+body[data-view="points"] .special-link-board .special-tile:hover { transform: translateY(-3px); box-shadow: 0 9px 0 #78a9a4, 0 15px 19px rgba(0,0,0,.2); }
+body[data-view="points"] .special-link-board .special-tile.hinted { background: #fff0b8; border-color: #efcb67; box-shadow: 0 6px 0 #c8a74d, 0 0 0 3px rgba(255,238,173,.3); }
+body[data-view="points"] .special-link-board .special-tile.connecting { background: #b8f3df; }
+body[data-view="points"] .game-message { color: #285c62; font-weight: 700; }
+body[data-view="points"] .game-answer-list details { background: #f9fdfb; border-color: #d6e6e1; }
+
+/* Room three: a bright tabletop puzzle, intentionally unlike the night chart. */
+body[data-view="match"] { --paper: #fff4e8; --card: #fffdf7; --jade: #9a4d55; --jade-pale: #fff0e9; --ink: #473744; --ink-soft: #77636b; --line: #f0dacc; --coral: #cf695b; }
+body[data-view="match"] .view-root { max-width: 1160px; }
+@media (min-width: 901px) {
+  body[data-view="match"] .view-root { display: grid; grid-template-columns: minmax(0, 1fr) 245px; column-gap: 22px; align-items: start; }
+  body[data-view="match"] .view-root > * { grid-column: 1 / -1; }
+  body[data-view="match"] .special-hero { grid-row: 1; }
+  body[data-view="match"] .special-rules { grid-column: 2; grid-row: 2 / span 5; position: sticky; top: 94px; min-height: 470px; margin: 18px 0 0; padding: 23px 20px; }
+  body[data-view="match"] .special-rules ol { display: grid; gap: 18px; padding-left: 20px; }
+  body[data-view="match"] .special-controls { grid-column: 1; grid-row: 2; }
+  body[data-view="match"] .special-instruction { grid-column: 1; grid-row: 3; }
+  body[data-view="match"] .game-status { grid-column: 1; grid-row: 4; justify-self: start; }
+  body[data-view="match"] .special-board-wrap { grid-column: 1; grid-row: 5; }
+  body[data-view="match"] .game-message { grid-column: 1; grid-row: 6; }
+  body[data-view="match"] .special-hero { min-height: 150px; padding-top: 25px; padding-bottom: 25px; }
+  body[data-view="match"] .special-controls { gap: 8px; }
+  body[data-view="match"] .special-controls label { min-width: 0; }
+  body[data-view="match"] .special-controls .select-control { min-width: 130px; }
+}
+body[data-view="match"] .special-hero { min-height: 210px; padding: 36px 44px; border-radius: 32px; border: 4px solid #f3b882; color: #522c3d; background: radial-gradient(circle at 78% 44%, #ffe5a2 0 7%, transparent 7.2%), radial-gradient(circle at 90% 72%, #f49c80 0 6%, transparent 6.2%), linear-gradient(120deg, #ffe0b0, #ffb99f 62%, #f9998d); box-shadow: 0 11px 0 #e99875, 0 28px 36px rgba(169,95,86,.19); }
+body[data-view="match"] .special-hero::after { width: 155px; height: 155px; right: 112px; top: -64px; border: 18px solid rgba(255,255,255,.28); background: transparent; filter: none; }
+body[data-view="match"] .special-hero .eyebrow { color: #8e4b53; }
+body[data-view="match"] .special-hero h2 { font: 900 clamp(31px, 3vw, 44px)/1.18 "Microsoft YaHei", "PingFang SC", sans-serif; letter-spacing: .04em; }
+body[data-view="match"] .special-hero p { color: #674954; font-size: 14px; font-weight: 600; }
+body[data-view="match"] .special-rules { border: 2px solid #f4cfb2; background: #fff9eb; color: #704d50; border-radius: 22px; }
+body[data-view="match"] .special-controls { padding: 18px 20px; border: 1px solid #f2d6c5; border-radius: 20px; background: rgba(255,253,246,.9); }
+body[data-view="match"] .special-controls .ghost-button { background: #ffe8d9; color: #92525b; }
+body[data-view="match"] .special-instruction { margin-bottom: 4px; font-weight: 600; }
+body[data-view="match"] .game-status { display: inline-block; margin: 10px 0 16px; padding: 11px 18px; color: #fff6e7; background: #8d4a61; border-radius: 14px; box-shadow: 0 5px 0 #69364b; font-weight: 800; }
+body[data-view="match"] .special-match-board { padding: 20px; gap: 9px; border: 8px solid #804f74; border-radius: 26px; background: radial-gradient(circle at 1px 1px, rgba(255,255,255,.14) 1px, transparent 1.5px) 0 0/22px 22px, #a86a98; box-shadow: 0 19px 0 #71415f, 0 30px 34px rgba(101,48,80,.21), inset 0 0 0 2px rgba(255,255,255,.3); }
+body[data-view="match"] .special-match-board .special-tile { min-height: 76px; border-radius: 16px; border: 2px solid #f5d8b3; background: linear-gradient(155deg, #fffef8, #ffeacb); color: #6b3e53; box-shadow: inset 0 2px 0 #fff, 0 6px 0 #d99a77, 0 9px 13px rgba(74,38,61,.18); font-size: 16px; }
+body[data-view="match"] .special-match-board .special-tile:hover { transform: translateY(-3px); box-shadow: inset 0 2px 0 #fff, 0 9px 0 #d99a77, 0 13px 18px rgba(74,38,61,.22); }
+body[data-view="match"] .special-match-board .special-tile.hinted { background: #fff4aa; border-color: #e3bd5d; box-shadow: 0 6px 0 #c5964e, 0 0 0 3px rgba(255,235,127,.4); }
+body[data-view="match"] .special-match-board .special-tile.clearing { background: #fcdd8c; }
+body[data-view="match"] .game-message { color: #8d4a61; font-weight: 700; margin-top: 28px; }
+body[data-view="match"] .special-feedback-copy { background: #853e69; box-shadow: 0 11px 0 #643153, 0 20px 30px rgba(79,29,67,.27); }
+
+/* Library and staff tools retain the shared system without imitating a game. */
+body[data-view="atlas"] .feature-hero { border-radius: 7px 28px 7px 28px; background: linear-gradient(115deg, #e9eee3, #fbf8ed); }
+body[data-view="atlas"] .point-list-item.active { box-shadow: inset 3px 0 #ba8f52; }
+body[data-view="teacher"] .dashboard-header, body[data-view="admin"] .dashboard-header { padding: 27px 30px; border-radius: 18px; background: #e9eee8; border: 1px solid #dce6db; }
+body[data-view="teacher"] .dashboard-stats .dashboard-card, body[data-view="admin"] .dashboard-stats .dashboard-card { border-top: 4px solid #9cb9a6; }
+
+@media (max-width: 1000px) {
+  body[data-view="practice"] .welcome-row, body[data-view="review"] .welcome-row { display: block; }
+  body[data-view="practice"] .session-controls, body[data-view="review"] .session-controls { justify-content: flex-start; margin-top: 18px; }
+}
+@media (max-width: 720px) {
+  .sidebar { padding-top: 14px; }
+  .brand-lockup { margin-bottom: 7px; padding-bottom: 8px; }
+  .brand-mark { width: 38px; height: 38px; }
+  .brand-name { font-size: 18px; }
+  .role-switch { margin-bottom: 7px; }
+  .role-button { min-height: 36px; padding: 4px; }
+  .primary-nav { gap: 2px; }
+  .nav-item { min-height: 38px; padding: 5px 8px; }
+  .topbar { background: #fffdf7; }
+  .view-root { padding-top: 22px; }
+  body[data-view="practice"] .welcome-row, body[data-view="review"] .welcome-row { padding: 24px 22px; border-radius: 7px 22px 7px 22px; }
+  body[data-view="practice"] .welcome-row::after, body[data-view="review"] .welcome-row::after { font-size: 76px; right: -13px; bottom: -17px; }
+  body[data-view="practice"] .question-card, body[data-view="review"] .question-card { padding: 17px; }
+  body[data-view="points"] .special-hero, body[data-view="match"] .special-hero { min-height: 150px; padding: 22px 23px; }
+  body[data-view="points"] .special-hero h2, body[data-view="match"] .special-hero h2 { font-size: 29px; }
+  body[data-view="points"] .special-controls, body[data-view="match"] .special-controls { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 7px; padding: 11px; }
+  body[data-view="points"] .special-controls label, body[data-view="match"] .special-controls label { min-width: 0; }
+  body[data-view="points"] .special-controls label, body[data-view="match"] .special-controls label { grid-column: span 3; }
+  body[data-view="points"] .special-controls .ghost-button, body[data-view="match"] .special-controls .ghost-button { grid-column: span 2; padding: 8px 4px; font-size: 11px; }
+  body[data-view="points"] .special-link-board { gap: 7px; padding: 10px; border-width: 5px; min-height: 270px; }
+  body[data-view="points"] .special-link-board .special-tile { min-height: 61px; font-size: 12px; padding: 5px 2px; box-shadow: 0 4px 0 #78a9a4; }
+  body[data-view="match"] .special-match-board { padding: 8px; gap: 5px; border-width: 5px; }
+  body[data-view="match"] .special-match-board .special-tile { min-height: 55px; border-radius: 9px; font-size: 12px; padding: 4px 1px; box-shadow: 0 4px 0 #d99a77; }
+  body[data-view="match"] .view-root { display: flex; flex-direction: column; }
+  body[data-view="match"] .view-root > * { width: 100%; }
+  body[data-view="match"] .special-hero { order: 1; }
+  body[data-view="match"] .special-rules { order: 2; margin: 10px 0 0; }
+  body[data-view="match"] .special-controls { order: 3; }
+  body[data-view="match"] .game-status { order: 4; }
+  body[data-view="match"] .special-board-wrap { order: 5; }
+  body[data-view="match"] .special-instruction { order: 6; margin-top: 25px; }
+  body[data-view="match"] .game-message { order: 7; margin-top: 8px; }
+  body[data-view="match"] .game-answer-list { order: 8; }
+  body[data-view="match"] .game-result { order: 9; }
+  body[data-view="teacher"] .dashboard-header, body[data-view="admin"] .dashboard-header { padding: 22px; }
+}

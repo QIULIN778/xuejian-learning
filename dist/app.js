@@ -519,6 +519,13 @@ function exportLocalProgress() {
 function setView(view) {
   if (typeof specialStop === "function") specialStop();
   state.view = view;
+  document.body.dataset.view = view;
+  state.role = view === "teacher" || view === "admin" ? view : "student";
+  document.querySelectorAll(".role-button").forEach((button) => {
+    const active = button.dataset.role === state.role;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  });
   document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.view === view));
   if (view === "teacher") { renderTeacher(); return; }
   if (view === "admin") { renderAdmin(); return; }
@@ -546,6 +553,7 @@ function bindNavigation() {
 async function boot() {
   try {
     state.data = await loadQuestionBank();
+    document.body.dataset.view = "practice";
     renderMeridianList();
     bindNavigation();
     saveStats();

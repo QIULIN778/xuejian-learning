@@ -77,8 +77,9 @@ function renderSpecialMatchGame(target = '五输穴', mode = 'learn', tutorial =
   if (tutorial) { target = '井'; mode = 'learn'; }
   specialStop();
   state.view = 'match';
+  document.body.dataset.view = 'match';
   pageContext.textContent = '特定穴消消乐';
-  const session = { view: 'match', target, mode, tutorial, board: specialCore.makeMatchBoard(state.data, target), selected: -1, moves: 0, invalid: 0, hints: 0, remaining: mode === 'challenge' ? 180 : null, score: 0, done: false, locked: false, fx: null, seen: new Map(), exposed: new Map(), lastExplained: [], message: tutorial ? '新手关：依次点击高亮的两格，完成一次“井穴”三消。' : '先选一格，再选相邻格；凑齐三个本类穴位。', hint: [] };
+  const session = { view: 'match', target, mode, tutorial, board: specialCore.makeMatchBoard(state.data, target), selected: -1, moves: 0, invalid: 0, hints: 0, remaining: mode === 'challenge' ? 180 : null, score: 0, done: false, locked: false, fx: null, rulesOpen: window.matchMedia('(min-width: 721px)').matches, seen: new Map(), exposed: new Map(), lastExplained: [], message: tutorial ? '新手关：依次点击高亮的两格，完成一次“井穴”三消。' : '先选一格，再选相邻格；凑齐三个本类穴位。', hint: [] };
   if (tutorial) session.hint = specialCore.validSwaps(session.board, target)[0];
   session.board.forEach((point) => session.exposed.set(point.id, point));
   specialSession = session;
@@ -86,7 +87,7 @@ function renderSpecialMatchGame(target = '五输穴', mode = 'learn', tutorial =
     if (specialSession !== session) return;
     const example = state.data.points.find((p) => specialCore.hasCategory(p, target));
     root.innerHTML = `<div class="feature-hero special-hero"><div><div class="eyebrow">SPECIAL ACUPOINT MATCH 3</div><h2>特定穴消消乐</h2><p>交换相邻穴名，横向或纵向凑出三个不同的目标类穴位即可消除。完成 6 次有效消除。</p></div></div>
-      <details class="special-rules" open><summary>怎么玩？先看这 4 步</summary><ol><li>选一个目标类别，例如“井穴”。棋子上只写穴名，需要你判断类别。</li><li>依次点击相邻的两格，让它们交换位置。</li><li>横排或竖排凑齐 3 个不同的本类穴位就会消除；其他类别不算。</li><li>正式关消除 6 次通关。学习不限时，挑战限 180 秒；不确定时点“提示”。</li></ol></details>
+      <details class="special-rules"${session.rulesOpen ? ' open' : ''}><summary>怎么玩？先看这 4 步</summary><ol><li>选一个目标类别，例如“井穴”。棋子上只写穴名，需要你判断类别。</li><li>依次点击相邻的两格，让它们交换位置。</li><li>横排或竖排凑齐 3 个不同的本类穴位就会消除；其他类别不算。</li><li>正式关消除 6 次通关。学习不限时，挑战限 180 秒；不确定时点“提示”。</li></ol></details>
       <div class="explorer-toolbar game-toolbar special-controls"><label>目标类别<select id="special-target" class="select-control">${specialCore.TARGETS.map((name) => `<option value="${name}"${name === target ? ' selected' : ''}>${name === '络穴' || name === '郄穴' ? `十二经${name}` : name}</option>`).join('')}</select></label>${specialModes(session)}<button type="button" class="ghost-button" id="special-tutorial">${tutorial ? '退出新手关' : '先玩新手关'}</button><button type="button" class="ghost-button" id="special-hint">提示 ${mode === 'challenge' ? `${3 - session.hints}/3` : ''}</button><button type="button" class="ghost-button" id="special-reset">重新开局</button></div>
       <p class="special-instruction">${escapeHtml(specialDescriptions[target])} 示例：${escapeHtml(example.name)}（${escapeHtml(specialCore.identity(example))}）。</p>
       <p class="game-status">${tutorial ? '新手关' : '有效消除'} ${session.moves}/${tutorial ? 1 : 6} · 无效交换 ${session.invalid} · 已见 ${session.exposed.size} 穴${mode === 'challenge' ? ` · 剩余 ${session.remaining} 秒 · ${Math.max(0, session.score)} 分` : ''}</p>
@@ -94,6 +95,7 @@ function renderSpecialMatchGame(target = '五输穴', mode = 'learn', tutorial =
       <p class="game-message" aria-live="polite">${escapeHtml(session.message)}</p>
       ${specialInlineExplanation(session.lastExplained)}
       ${session.done ? specialResults(session, [...session.exposed.values()], `有效消除 ${session.moves} 次，无效交换 ${session.invalid} 次，接触 ${session.exposed.size} 穴，提示 ${session.hints} 次。`) : ''}`;
+    root.querySelector('.special-rules').ontoggle = (e) => { session.rulesOpen = e.target.open; };
     root.querySelector('#special-target').onchange = (e) => renderSpecialMatchGame(e.target.value, mode);
     root.querySelector('#special-mode').onchange = (e) => renderSpecialMatchGame(target, e.target.value);
     root.querySelector('#special-tutorial').onclick = () => renderSpecialMatchGame(tutorial ? '五输穴' : '井', 'learn', !tutorial);
@@ -153,17 +155,18 @@ function renderSpecialLinkGame(chapter = 'meridian', value = null, mode = 'learn
   if (tutorial) { chapter = 'meridian'; value = state.data.meridians[0]; mode = 'learn'; }
   specialStop();
   state.view = 'points';
+  document.body.dataset.view = 'points';
   pageContext.textContent = '特定穴连连看';
   if (!value) value = chapter === 'meridian' ? state.data.meridians[0] : '井';
   const pairs = specialCore.linkPairs(state.data, chapter, value, Math.random, specialPriorityIds()).slice(0, tutorial ? 3 : undefined);
-  const session = { view: 'points', chapter, value, mode, tutorial, pairs, board: specialCore.makeLinkBoard(pairs), selected: -1, matched: 0, wrong: 0, blocked: 0, hints: 0, remaining: mode === 'challenge' ? 180 : null, score: 0, done: false, locked: false, fx: null, message: tutorial ? '新手关：先点高亮穴名，再点高亮身份。' : '先选穴名，再选特定穴身份。', mistakes: new Set(), hint: [], line: null, lastExplained: [] };
+  const session = { view: 'points', chapter, value, mode, tutorial, pairs, board: specialCore.makeLinkBoard(pairs), selected: -1, matched: 0, wrong: 0, blocked: 0, hints: 0, remaining: mode === 'challenge' ? 180 : null, score: 0, done: false, locked: false, fx: null, rulesOpen: window.matchMedia('(min-width: 721px)').matches, message: tutorial ? '新手关：先点高亮穴名，再点高亮身份。' : '先选穴名，再选特定穴身份。', mistakes: new Set(), hint: [], line: null, lastExplained: [] };
   if (tutorial) { const link = specialCore.legalLinks(session.board)[0]; session.hint = [link.a, link.b]; }
   specialSession = session;
   function paint() {
     if (specialSession !== session) return;
     const values = chapter === 'meridian' ? state.data.meridians : specialCore.TARGETS.slice(1);
     root.innerHTML = `<div class="feature-hero special-hero"><div><div class="eyebrow">SPECIAL ACUPOINT LINK</div><h2>特定穴连连看</h2><p>穴名连接其特定穴身份。连线不得穿过棋子，最多转两次弯；可从棋盘外侧绕行。</p></div></div>
-      <details class="special-rules" open><summary>怎么玩？先看这 4 步</summary><ol><li>先点一块穴名，再点它的正确身份，例如“少商”连“井穴”。</li><li>两块之间的线不能穿过其他棋子，最多拐两次弯；棋盘外缘也能绕。</li><li>身份选错会给解析；身份正确但路线被挡，请先消除别的配对。</li><li>消完所有配对通关。单经脉有 7 或 8 对，跨经同类有 6 对。</li></ol></details>
+      <details class="special-rules"${session.rulesOpen ? ' open' : ''}><summary>怎么玩？先看这 4 步</summary><ol><li>先点一块穴名，再点它的正确身份，例如“少商”连“井穴”。</li><li>两块之间的线不能穿过其他棋子，最多拐两次弯；棋盘外缘也能绕。</li><li>身份选错会给解析；身份正确但路线被挡，请先消除别的配对。</li><li>消完所有配对通关。单经脉有 7 或 8 对，跨经同类有 6 对。</li></ol></details>
       <div class="explorer-toolbar game-toolbar special-controls"><label>关卡<select id="link-chapter" class="select-control"><option value="meridian"${chapter === 'meridian' ? ' selected' : ''}>单经脉</option><option value="category"${chapter === 'category' ? ' selected' : ''}>跨经脉同类</option></select></label><label>范围<select id="link-value" class="select-control">${values.map((item) => `<option value="${escapeHtml(item)}"${item === value ? ' selected' : ''}>${escapeHtml(item === '络穴' || item === '郄穴' ? `十二经${item}` : item)}</option>`).join('')}</select></label>${specialModes(session)}<button type="button" class="ghost-button" id="special-tutorial">${tutorial ? '退出新手关' : '先玩新手关'}</button><button type="button" class="ghost-button" id="special-hint">提示 ${mode === 'challenge' ? `${3 - session.hints}/3` : ''}</button><button type="button" class="ghost-button" id="special-reset">重新开局</button></div>
       <p class="special-instruction">${chapter === 'meridian' ? '本经的井、荥、输、经、合、原、络、郄；阴经输穴兼原穴为同一对。' : `跨经脉辨认${value}穴，每条经脉只出现一个正确身份。`}</p>
       <p class="game-status">已连接 ${session.matched}/${pairs.length} · 医学错配 ${session.wrong} · 路线受阻 ${session.blocked}${mode === 'challenge' ? ` · 剩余 ${session.remaining} 秒 · ${Math.max(0, session.score)} 分` : ''}</p>
@@ -171,6 +174,7 @@ function renderSpecialLinkGame(chapter = 'meridian', value = null, mode = 'learn
       <p class="game-message" aria-live="polite">${escapeHtml(session.message)}</p>
       ${specialInlineExplanation(session.lastExplained)}
       ${session.done ? specialResults(session, pairs.map((pair) => pair.point), `连接 ${session.matched} 对，医学错配 ${session.wrong} 次，路线受阻 ${session.blocked} 次，提示 ${session.hints} 次。`) : ''}`;
+    root.querySelector('.special-rules').ontoggle = (e) => { session.rulesOpen = e.target.open; };
     root.querySelector('#link-chapter').onchange = (e) => renderSpecialLinkGame(e.target.value, null, mode);
     root.querySelector('#link-value').onchange = (e) => renderSpecialLinkGame(chapter, e.target.value, mode);
     root.querySelector('#special-mode').onchange = (e) => renderSpecialLinkGame(chapter, value, e.target.value);
