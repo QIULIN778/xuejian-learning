@@ -55,17 +55,27 @@
   }
   function refillBoard(board, data, target, seen = [], random = Math.random) {
     const pool = gamePool(data), used = new Set(board.filter(Boolean).map((p) => p.id)), seenSet = new Set(seen), next = board.slice();
-    let targetNeeded = Math.max(0, 12 - board.filter((p) => p && hasCategory(p, target)).length);
+    // Keep at least one non-target refill: otherwise a cleared row of three
+    // target tiles refills with three targets and loops forever.
+    let targetNeeded = Math.min(Math.max(0, 12 - board.filter((p) => p && hasCategory(p, target)).length), Math.max(0, board.filter((p) => !p).length - 1));
     for (let col = 0; col < 6; col += 1) {
       const kept = [];
       for (let row = 5; row >= 0; row -= 1) if (next[row * 6 + col]) kept.push(next[row * 6 + col]);
+      for (let row = 0; row < 6; row += 1) next[row * 6 + col] = null;
       for (let row = 5; row >= 0; row -= 1) {
         const i = row * 6 + col;
         if (5 - row < kept.length) next[i] = kept[5 - row];
         else {
           const eligible = pool.filter((p) => !used.has(p.id) && (targetNeeded > 0 ? hasCategory(p, target) : true)), unseen = eligible.filter((p) => !seenSet.has(p.id));
-          const source = unseen.length ? unseen : eligible;
-          const p = source[Math.floor(random() * source.length)];
+          const source = shuffled(unseen.length ? unseen : eligible, random);
+          // Gravity may create a genuine cascade. Newly spawned tiles must not
+          // create an arbitrary run by themselves; otherwise one move can loop.
+          const p = source.find((candidate) => {
+            next[i] = candidate;
+            const safe = !matchLines(next, target).some((line) => line.includes(i));
+            next[i] = null;
+            return safe;
+          }) || source[0];
           next[i] = p; used.add(p.id); if (hasCategory(p, target)) targetNeeded = Math.max(0, targetNeeded - 1);
         }
       }
@@ -76,17 +86,20 @@
     if (!adjacent(a, b)) return { valid: false, board };
     let next = swap(board, a, b), lines = matchLines(next, target).filter((line) => line.includes(a) || line.includes(b));
     if (!lines.length) return { valid: false, board };
-    const cleared = []; let firstCount = 0, cascadeGroups = 0, round = 0;
-    while (lines.length && round < 20) {
+    const cleared = []; let firstCount = 0, cascadeGroups = 0, cascadeRounds = 0, round = 0;
+    while (lines.length && round < 6) {
       const cells = [...new Set(lines.flat())];
-      if (round === 0) firstCount = cells.length; else cascadeGroups += lines.length;
+      if (round === 0) firstCount = cells.length; else { cascadeGroups += lines.length; cascadeRounds += 1; }
       cleared.push(...cells.map((i) => next[i]));
       for (const i of cells) next[i] = null;
       next = refillBoard(next, data, target, [...seen, ...cleared.map((p) => p.id)], random);
       lines = matchLines(next, target); round += 1;
     }
-    if (!validSwaps(next, target).length) next = reshuffleMatchBoard(next, target, random);
-    return { valid: true, board: next, cleared, firstCount, cascadeGroups };
+    if (matchLines(next, target).length || !validSwaps(next, target).length) {
+      try { next = reshuffleMatchBoard(next, target, random); }
+      catch (_) { next = makeMatchBoard(data, target, random); }
+    }
+    return { valid: true, board: next, cleared, firstCount, cascadeGroups, cascadeRounds };
   }
   function linkPairs(data, chapter, value, random = Math.random, preferredIds = []) {
     if (chapter === 'meridian') {
