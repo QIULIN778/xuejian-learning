@@ -3,18 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#202a28" />
-    <title>穴见有方 · 经穴识记与复习</title>
-    <link rel="stylesheet" href="styles.css" />
+    <meta name="theme-color" content="#172b29" />
+    <title>循经识穴 · 经穴学习与特定穴游戏</title>
+    <link rel="stylesheet" href="styles.css?v=0.3.13" />
+    <link rel="stylesheet" href="visual-refinement.css?v=0.3.13" />
   </head>
   <body data-view="practice">
     <div class="app-shell">
       <aside class="sidebar" aria-label="主导航">
         <div class="brand-lockup">
-          <div class="brand-mark">穴</div>
+          <div class="brand-mark" aria-hidden="true"><span>经</span><i></i></div>
           <div>
-            <div class="brand-name">穴见有方</div>
-            <div class="brand-subtitle">识穴 · 辨经 · 温故</div>
+            <div class="brand-name">循经识穴</div>
+            <div class="brand-subtitle">循经络之脉 · 识腧穴之微</div>
           </div>
         </div>
 
@@ -24,42 +25,46 @@
           <button class="role-button" data-role="admin" aria-pressed="false">管理后台</button>
         </div>
 
-        <div class="nav-label">学习地图</div>
+        <div class="nav-label">研习之室 <small>01 — 03</small></div>
         <nav class="primary-nav">
-          <button class="nav-item active" data-view="practice"><span class="nav-icon">✦</span><span>识图学习</span><span class="nav-pill">307</span></button>
-          <button class="nav-item" data-view="review"><span class="nav-icon">↺</span><span>错题复习</span><span class="nav-pill" id="wrong-count">0</span></button>
-          <button class="nav-item" data-view="points"><span class="nav-icon">⌖</span><span>特定穴连连看</span><span class="nav-pill">分类</span></button>
-          <button class="nav-item" data-view="match"><span class="nav-icon">◆</span><span>特定穴消消乐</span><span class="nav-pill">三消</span></button>
-          <button class="nav-item" data-view="atlas"><span class="nav-icon">▦</span><span>穴位图鉴</span><span class="nav-pill">309</span></button>
+          <button class="nav-item active" data-view="practice"><span class="nav-icon">壹</span><span>识图研习<small>看图辨穴 · 循序复习</small></span><span class="nav-pill">…</span></button>
+          <button class="nav-item" data-view="points"><span class="nav-icon">贰</span><span>经穴连线<small>辨认身份 · 连通经脉</small></span><span class="nav-pill">连</span></button>
+          <button class="nav-item" data-view="match"><span class="nav-icon">叁</span><span>特定穴棋局<small>分类三消 · 妙手成局</small></span><span class="nav-pill">消</span></button>
+        </nav>
+
+        <div class="nav-label secondary-label">学习札记</div>
+        <nav class="secondary-nav">
+          <button class="nav-item" data-view="review"><span class="nav-icon">复</span><span>错题复习</span><span class="nav-pill" id="wrong-count">0</span></button>
+          <button class="nav-item" data-view="atlas"><span class="nav-icon">图</span><span>穴位图鉴</span><span class="nav-pill">309</span></button>
         </nav>
 
         <div class="nav-label meridian-label">经脉目录</div>
         <div class="meridian-list" id="meridian-list"></div>
 
         <div class="sidebar-footer">
-          <div class="version-chip"><span class="status-dot"></span>体验版 · 0.3.0</div>
+          <div class="version-chip"><span class="status-dot"></span>精修版 · 0.3.13</div>
           <div class="footer-copy">十二经 · 309 穴<br />图谱识记、特定穴游戏与间隔复习</div>
         </div>
       </aside>
 
       <main class="main-content">
         <header class="topbar">
-          <div class="breadcrumb"><span>穴见有方</span><span class="breadcrumb-slash">/</span><strong id="page-context">识图学习</strong></div>
+          <div class="breadcrumb"><span>循经识穴</span><span class="breadcrumb-slash">/</span><strong id="page-context">识图学习</strong></div>
           <div class="topbar-actions">
-            <div class="data-status"><span class="status-dot"></span><span>题库已同步</span></div>
-            <button class="avatar-button" title="本地学生账号">学</button>
+            <div class="data-status"><span class="status-dot"></span><span>十二经 · 309 穴</span></div>
+            <button class="avatar-button" title="本地学生账号" aria-label="本地学生账号">学</button>
           </div>
         </header>
 
         <section id="view-root" class="view-root" aria-live="polite"></section>
       </main>
     </div>
-    <script src="static-data.js?v=0.3.0" defer></script>
-    <script src="game-core.js?v=0.3.0" defer></script>
-    <script src="review-scheduler.js?v=0.3.0" defer></script>
-    <script src="app.js?v=0.3.0" defer></script>
-    <script src="games.js?v=0.3.0" defer></script>
-    <script src="special-game-core.js?v=0.3.0" defer></script>
-    <script src="special-games.js?v=0.3.0" defer></script>
+    <script src="static-data.js?v=0.3.13" defer></script>
+    <script src="game-core.js?v=0.3.13" defer></script>
+    <script src="review-scheduler.js?v=0.3.13" defer></script>
+    <script src="app.js?v=0.3.13" defer></script>
+    <script src="games.js?v=0.3.13" defer></script>
+    <script src="special-game-core.js?v=0.3.13" defer></script>
+    <script src="special-games.js?v=0.3.13" defer></script>
   </body>
 </html>

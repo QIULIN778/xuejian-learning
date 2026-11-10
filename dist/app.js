@@ -17,6 +17,14 @@ const state = {
 const root = document.querySelector("#view-root");
 const pageContext = document.querySelector("#page-context");
 const imagePreloadCache = new Map();
+let apiAvailable = false;
+
+function syncToLocalApi(endpoint, payload) {
+  if (!apiAvailable) return;
+  fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+    .then((response) => { if (!response.ok) apiAvailable = false; })
+    .catch(() => { apiAvailable = false; });
+}
 
 function loadStats() {
   try {
@@ -53,14 +61,14 @@ function saveMode() {
 
 function saveStats() {
   writeLocalStorage("xuejian-progress-v1", JSON.stringify(state.stats));
-  fetch("/api/progress", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: "demo", progress: state.stats }) }).catch(() => {});
+  syncToLocalApi("/api/progress", { userId: "demo", progress: state.stats });
   const count = document.querySelector("#wrong-count");
   if (count) count.textContent = state.data.points.filter((point) => isImageQuizEligible(point) && (state.stats.wrongIds.includes(point.id) || window.XuejianReviewScheduler.due(state.stats.review[point.id]))).length;
 }
 
 function saveFavorites() {
   writeLocalStorage("xuejian-favorites-v1", JSON.stringify(state.favorites));
-  fetch("/api/favorites", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: "demo", favorites: state.favorites }) }).catch(() => {});
+  syncToLocalApi("/api/favorites", { userId: "demo", favorites: state.favorites });
 }
 
 function toggleFavorite(pointId) {
@@ -93,7 +101,7 @@ function createTeacherRecord(endpoint, storageKey, payload, type) {
   const records = loadTeacherList(storageKey);
   records.unshift(record);
   saveTeacherList(storageKey, records);
-  fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(record) }).catch(() => {});
+  syncToLocalApi(endpoint, record);
   return record;
 }
 
@@ -117,7 +125,9 @@ function assetUrl(relativePath) {
     if (currentPath.includes("/dist/") || currentPath.includes("/site-publish/")) {
       return "asset/" + relativePath.split("/").map(encodeURIComponent).join("/");
     }
-    return "../../修改后版本/第二步_图片与解析优化版/" + relativePath.split("/").map(encodeURIComponent).join("/");
+    const point = state.data?.points?.find((item) => item.imagePath === relativePath);
+    const folder = point && ["HT7", "BL1", "BL38"].includes(point.id) ? "第二步_图片与解析优化版" : "第一步_题库内容修订版";
+    return "../../修改后版本/" + folder + "/" + relativePath.split("/").map(encodeURIComponent).join("/");
   }
   return "asset/" + relativePath.split("/").map(encodeURIComponent).join("/");
 }
@@ -169,13 +179,21 @@ function bindImageEvents() {
 }
 
 function imageReviewNote(point, hidden = false) {
+  if (point?.imageUsage === "image_mismatch_hold") return `<div id="image-review-note" class="image-review-note"><strong>原图待核</strong><span>${escapeHtml(point.imageMarkerStatus || "图文有疑点")}，已暂停该图的识图出题。</span><em>请按标准定位文字学习</em></div>`;
   if (point && (point.id === "LI8" || point.id === "LI9")) return '<div id="image-review-note" class="image-review-note"><strong>原图说明</strong><span>这张抽象图没有前臂或穴位点，只用于穴名联想。</span><em>实际定位请以现代定位文字为准</em></div>';
   if (point?.imageUsage === "name_mnemonic_only" && hidden) return '<div id="image-review-note" class="image-review-note"><strong>穴名联想图</strong><span>这张图用于记名称，不显示可据以取穴的点位。</span><em>答题后查看标准定位</em></div>';
+  if (point?.imageUsage === "location_method_only" && hidden) return '<div id="image-review-note" class="image-review-note"><strong>区域或经脉示意</strong><span>这张图只展示大致区域、手法或经脉关系，未标出可直接取穴的目标点。</span><em>答题后查看标准定位</em></div>';
   if (hidden) return '<div id="image-review-note" class="image-review-note"><strong>测试模式</strong><span>提交答案后显示图片线索与原著依据。</span><em>先按教材定位作答</em></div>';
-  const status = point?.imageMarkerStatus || "图中目标点/参照点状态待人工确认";
   const clue = point?.imageClue || point?.visualCue || "先确认身体部位，再观察图中唯一目标点。";
-  const markerNote = point?.imageUsage === "name_mnemonic_only" ? "仅用于穴名联想；不能据图取穴" : /未登记|待人工复核|待确认/.test(status) ? "正式原图未叠加红/灰标记；请结合原图和定位复核" : status;
-  return `<div id="image-review-note" class="image-review-note"><strong>看图提示</strong><span>${escapeHtml(clue)}</span><em>${escapeHtml(markerNote)}</em></div>`;
+  return `<div id="image-review-note" class="image-review-note"><strong>看图提示</strong><span>${escapeHtml(clue)}</span><em>${escapeHtml(studentImageUse(point))}</em></div>`;
+}
+
+function studentImageUse(point) {
+  if (point?.imageUsage === "image_mismatch_hold") return "原图图文或点位有矛盾，暂停识图出题；请按标准定位文字学习。";
+  if (point?.id === "LI8" || point?.id === "LI9") return "原图没有穴位点，仅供穴名联想；请按标准定位学习。";
+  if (point?.imageUsage === "name_mnemonic_only") return "仅用于穴名联想，不能据图取穴；请按标准定位学习。";
+  if (point?.imageUsage === "location_method_only") return "仅展示大致区域、手法或经脉关系，不能据图直接取穴；请按标准定位学习。";
+  return "图片用于辅助辨认，取穴位置以标准定位为准。";
 }
 
 async function loadQuestionBank() {
@@ -184,7 +202,10 @@ async function loadQuestionBank() {
   }
   try {
     const response = await fetch("/api/points");
-    if (response.ok) return response.json();
+    if (response.ok) {
+      apiAvailable = true;
+      return response.json();
+    }
   } catch (_) {
     // 静态托管版本没有 API 时，继续使用内置题库。
   }
@@ -195,7 +216,7 @@ async function loadQuestionBank() {
 }
 
 function isImageQuizEligible(point) {
-  return Boolean(point.imagePath && point.id !== "LI8" && point.id !== "LI9");
+  return Boolean(point.imagePath && point.id !== "LI8" && point.id !== "LI9" && point.imageUsage !== "image_mismatch_hold");
 }
 
 function currentPool() {
@@ -280,7 +301,7 @@ function selectAnswer(optionId) {
   feedback.querySelector(".explanation-copy").textContent = state.current.explanation || "这道题的解析正在整理中。";
   feedback.querySelector(".location-copy").textContent = state.current.locationText || "当前资料未提供结构化现代定位；请以教材和配套定位图复核。";
   feedback.querySelector(".memory-copy").textContent = state.current.memoryHint || "先定位身体部位，再用图中线索记忆。";
-  feedback.querySelector(".source-copy").textContent = state.current.originalBasis || state.current.sourceExcerpt || "暂无原著摘录。";
+  feedback.querySelector(".source-copy").textContent = `${state.current.sourceAnchor || state.current.sourceExcerpt || "暂无释名依据。"} 来源：${state.current.sourceReference || "题库资料"}`;
   document.querySelector("#next-question").textContent = state.sessionIndex === state.queue.length - 1 ? "查看本组结果" : "下一题";
 }
 
@@ -299,7 +320,8 @@ function renderPractice() {
   const image = imageMarkup(point, "question-image", true);
   root.innerHTML = `
     <div class="welcome-row">
-      <div><div class="eyebrow">IMAGE-BASED LEARNING</div><h1>${isReview ? "把错过的穴位，再看一遍" : "让穴位记忆有画面"}</h1><p class="lead">${isReview ? `当前复习队列 ${reviewCount} 个穴位，答对后会自动移出待复习列表。` : state.mode === "learn" ? "从图像线索出发，先做选择，再用来源可追溯的原著摘录把位置和命名连起来。下廉、上廉原图缺点，留在图鉴中学习。" : "测试模式：只看图片和选项，完成作答后再查看解析。"}</p></div>
+      <div><div class="eyebrow">第一研习室 · 图谱识记</div><h1>${isReview ? "重看旧题，温故知新" : "循图辨穴，识其所在"}</h1><p class="lead">${isReview ? `当前复习队列 ${reviewCount} 个穴位，答对后会自动移出待复习列表。` : state.mode === "learn" ? "从图像线索出发，先做选择，再用来源可追溯的原著摘录把位置和命名连起来。未参与识图抽题的原图仍可在图鉴查看定位和解析。" : "测试模式：只看图片和选项，完成作答后再查看解析。"}</p></div>
+      <div class="folio-illustration" aria-hidden="true"><span class="folio-track"><i></i><i></i><i></i><i></i><i></i></span><span class="folio-seal">识<br>穴</span></div>
       <div class="session-controls">
         <select class="select-control" id="meridian-select" aria-label="选择经脉">${meridianOptions(true)}</select>
         <button class="ghost-button" id="mode-toggle" type="button">${state.mode === "learn" ? "学习模式" : "测试模式"}</button>
@@ -321,7 +343,7 @@ function renderPractice() {
           <details open><summary>查看分层解析（来源可追溯）</summary><p class="explanation-copy"></p></details>
           <details><summary>现代定位 <span class="review-badge">${escapeHtml(point.locationStatus || "待复核")}</span></summary><p class="location-copy"></p></details>
           <details><summary>记忆提示</summary><p class="memory-copy"></p></details>
-          <details><summary>原著依据</summary><p class="source-copy"></p></details>
+          <details><summary>释名依据</summary><p class="source-copy"></p></details>
         </div>
         <div class="next-row"><button class="primary-button" id="next-question">选择答案后继续</button></div>
       </section>
@@ -392,14 +414,14 @@ function renderEmptyReview() {
 function pointDetails(point) {
   if (!point) return `<div class="empty-note">请选择一个穴位查看详情。</div>`;
   const image = imageMarkup(point, "detail-image");
-  return `<div class="point-detail-inner"><div class="point-detail-image">${image}</div><div><div class="section-kicker">${escapeHtml(point.meridian)} · ${escapeHtml(point.id)}</div><h3>${escapeHtml(point.name)}</h3><p class="detail-answer">正确答案：${escapeHtml(point.answerText || `${point.name}（${point.id}，${point.meridian}）`)}</p><p><strong>现代定位：</strong>${escapeHtml(point.locationText || "待复核")}</p><p><strong>图片线索：</strong>${escapeHtml(point.imageClue || point.visualCue || "")}</p><p><strong>图像审核：</strong>${escapeHtml(point.imageMarkerStatus || "目标点/参照点状态待人工确认")}</p><p><strong>记忆提示：</strong>${escapeHtml(point.memoryHint || "")}</p><details><summary>原著依据</summary><p>${escapeHtml(point.originalBasis || point.sourceExcerpt || "暂无摘录")}</p></details><div class="category-chips">${(point.specialCategories || []).map((item) => `<span class="feature-tag">${escapeHtml(item)}</span>`).join("") || "<span class=\"empty-note\">未登记特定穴分类</span>"}</div></div></div>`;
+  return `<div class="point-detail-inner"><div class="point-detail-image">${image}</div><div><div class="section-kicker">${escapeHtml(point.meridian)} · ${escapeHtml(point.id)}</div><h3>${escapeHtml(point.name)}</h3><p class="detail-answer">正确答案：${escapeHtml(point.answerText || `${point.name}（${point.id}，${point.meridian}）`)}</p><p><strong>现代定位：</strong>${escapeHtml(point.locationText || "待复核")}</p><p><strong>图片线索：</strong>${escapeHtml(point.imageClue || point.visualCue || "")}</p><p><strong>图片用途：</strong>${escapeHtml(studentImageUse(point))}</p><p><strong>记忆提示：</strong>${escapeHtml(point.memoryHint || "")}</p><details><summary>释名依据</summary><p>${escapeHtml(point.sourceAnchor || point.sourceExcerpt || "暂无释名依据")}</p><p class="source-reference">来源：${escapeHtml(point.sourceReference || "题库资料")}</p></details><div class="category-chips">${(point.specialCategories || []).map((item) => `<span class="feature-tag">${escapeHtml(item)}</span>`).join("") || "<span class=\"feature-tag\">十二经穴</span>"}</div></div></div>`;
 }
 
 function renderPointsExplorer() {
   pageContext.textContent = "穴位图鉴";
   const meridian = state.meridian === "全部经脉" ? state.data.meridians[0] : state.meridian;
   const points = state.data.points.filter((point) => point.meridian === meridian);
-  root.innerHTML = `<div class="feature-hero"><div><div class="eyebrow">POINT EXPLORER</div><h2>先看懂一条经脉，再记住穴位</h2><p>按经脉浏览同一套 309 个穴位资料；点击卡片查看图片、原著依据、现代定位和记忆提示。</p></div><div class="feature-orbit"><div class="orbit-core">穴</div></div></div><div class="explorer-toolbar"><select class="select-control" id="explorer-meridian">${meridianOptions()}</select><span class="feature-tag">静态资料版 · 不依赖实时 AI</span></div><div class="explorer-layout"><section class="point-list" id="point-list">${points.map((point) => `<button class="point-list-item" data-point-id="${escapeHtml(point.id)}"><strong>${escapeHtml(point.id)} · ${escapeHtml(point.name)}</strong><span>${escapeHtml((point.imageClue || point.visualCue || "").slice(0, 38))}</span></button>`).join("")}</section><section class="point-detail-card" id="point-detail">${pointDetails(points[0])}</section></div>`;
+  root.innerHTML = `<div class="feature-hero"><div><div class="eyebrow">经穴图鉴 · 十二经脉</div><h2>先看懂一条经脉，再记住穴位</h2><p>按经脉浏览同一套 309 个穴位资料；点击卡片查看图片、原著依据、现代定位和记忆提示。</p></div><div class="feature-orbit"><div class="orbit-core">穴</div></div></div><div class="explorer-toolbar"><select class="select-control" id="explorer-meridian">${meridianOptions()}</select><span class="feature-tag">十二经 · 309 穴</span></div><div class="explorer-layout"><section class="point-list" id="point-list">${points.map((point) => `<button class="point-list-item" data-point-id="${escapeHtml(point.id)}"><strong>${escapeHtml(point.id)} · ${escapeHtml(point.name)}</strong><span>${escapeHtml((point.imageClue || point.visualCue || "").slice(0, 38))}</span></button>`).join("")}</section><section class="point-detail-card" id="point-detail">${pointDetails(points[0])}</section></div>`;
   document.querySelector("#explorer-meridian").value = meridian;
   bindImageEvents();
   document.querySelector("#explorer-meridian").addEventListener("change", (event) => { state.meridian = event.target.value; renderPointsExplorer(); });
@@ -462,7 +484,7 @@ function renderTeacher() {
   const classOptions = classes.length ? classes.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`).join("") : '<option value="">先创建班级</option>';
   const classRows = classes.length ? classes.map((item) => `<li><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.grade || "未填写年级")} · ${new Date(item.createdAt).toLocaleDateString("zh-CN")}</span></li>`).join("") : '<li class="empty-note">还没有班级，先创建一个。</li>';
   const assignmentRows = assignments.length ? assignments.slice(0, 8).map((item) => `<li><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.meridian || "全部经脉")} · ${escapeHtml(item.count || "10")} 题 · ${escapeHtml(item.className || "未指定班级")}</span></li>`).join("") : '<li class="empty-note">还没有作业，创建后会出现在这里。</li>';
-  root.innerHTML = `<div class="dashboard-header"><div><div class="eyebrow">TEACHER CONSOLE</div><h2>班级学习概览</h2><p>教师端电脑和手机共用此页面；当前支持本地班级与作业演示，接入微信登录后替换为云端数据。</p></div><div class="dashboard-actions"><button class="ghost-button" id="export-progress">导出本地记录</button><button class="primary-button" id="back-student">进入学生练习</button></div></div><div class="dashboard-stats"><div class="dashboard-card"><span class="dash-label">题库穴位</span><strong class="dash-number">${state.data.pointCount}</strong><span class="dash-note">十二经脉已接入</span></div><div class="dashboard-card"><span class="dash-label">经脉数量</span><strong class="dash-number">${state.data.meridians.length}</strong><span class="dash-note">可按经脉布置练习</span></div><div class="dashboard-card"><span class="dash-label">当前答题</span><strong class="dash-number">${state.stats.total}</strong><span class="dash-note">本地演示记录</span></div><div class="dashboard-card"><span class="dash-label">正确率</span><strong class="dash-number">${accuracy}%</strong><span class="dash-note">接入班级后按学生统计</span></div></div><section class="dashboard-card teacher-workbench"><div class="side-card-header"><h3>班级与作业</h3><span class="feature-tag">${classes.length} 个班级 · ${assignments.length} 个作业</span></div><div class="teacher-form-grid"><form id="class-form" class="teacher-form"><strong>创建班级</strong><label>班级名称<input name="name" required placeholder="例如：针灸基础一班" /></label><label>年级或备注<input name="grade" placeholder="例如：2026 春季" /></label><button class="primary-button" type="submit">保存班级</button></form><form id="assignment-form" class="teacher-form"><strong>布置识图作业</strong><label>作业名称<input name="title" required placeholder="例如：手阳明大肠经复习" /></label><label>班级<select name="classId">${classOptions}</select></label><label>经脉<select name="meridian">${meridianOptions()}</select></label><label>题量<select name="count"><option>10</option><option>20</option><option>30</option></select></label><button class="primary-button" type="submit">保存作业</button></form></div><div class="teacher-lists"><div><h4>班级列表</h4><ul>${classRows}</ul></div><div><h4>最近作业</h4><ul>${assignmentRows}</ul></div></div></section><section class="dashboard-card table-card"><h3>十二经脉学习覆盖</h3><table class="meridian-table"><thead><tr><th>经脉</th><th>穴位数</th><th>覆盖进度</th><th>已学习</th></tr></thead><tbody>${rows}</tbody></table></section><section class="dashboard-card" style="margin-top:18px"><span class="dash-label">当前浏览器覆盖率</span><strong class="dash-number">${seenPercent}%</strong><span class="dash-note">正式版将替换为班级整体数据，并提供完成率、正确率、易错穴位和经脉对比。</span></section><section class="dashboard-card" style="margin-top:18px"><div class="side-card-header"><h3>正式图片版本</h3><span class="feature-tag">${escapeHtml(state.data.version)}</span></div><div class="stat-row" style="margin-top:0"><div class="stat-item"><strong>${originalImages}</strong><span>原始主图</span></div><div class="stat-item"><strong>${supplementImages}</strong><span>补图</span></div><div class="stat-item"><strong>${reviewedImages}/${state.data.pointCount}</strong><span>已纳入题库</span></div></div><p class="empty-note" style="margin-top:14px">当前正式题库不引用后续优化图和第三步试验图。</p></section>`;
+  root.innerHTML = `<div class="dashboard-header"><div><div class="eyebrow">教学案头 · 班级管理</div><h2>班级学习概览</h2><p>创建班级、安排识图练习，并查看学习覆盖情况。当前记录保存在本机。</p></div><div class="dashboard-actions"><button class="ghost-button" id="export-progress">导出本地记录</button><button class="primary-button" id="back-student">进入学生练习</button></div></div><div class="dashboard-stats"><div class="dashboard-card"><span class="dash-label">题库穴位</span><strong class="dash-number">${state.data.pointCount}</strong><span class="dash-note">十二经脉已接入</span></div><div class="dashboard-card"><span class="dash-label">经脉数量</span><strong class="dash-number">${state.data.meridians.length}</strong><span class="dash-note">可按经脉布置练习</span></div><div class="dashboard-card"><span class="dash-label">当前答题</span><strong class="dash-number">${state.stats.total}</strong><span class="dash-note">本地演示记录</span></div><div class="dashboard-card"><span class="dash-label">正确率</span><strong class="dash-number">${accuracy}%</strong><span class="dash-note">接入班级后按学生统计</span></div></div><section class="dashboard-card teacher-workbench"><div class="side-card-header"><h3>班级与作业</h3><span class="feature-tag">${classes.length} 个班级 · ${assignments.length} 个作业</span></div><div class="teacher-form-grid"><form id="class-form" class="teacher-form"><strong>创建班级</strong><label>班级名称<input name="name" required placeholder="例如：针灸基础一班" /></label><label>年级或备注<input name="grade" placeholder="例如：2026 春季" /></label><button class="primary-button" type="submit">保存班级</button></form><form id="assignment-form" class="teacher-form"><strong>布置识图作业</strong><label>作业名称<input name="title" required placeholder="例如：手阳明大肠经复习" /></label><label>班级<select name="classId">${classOptions}</select></label><label>经脉<select name="meridian">${meridianOptions()}</select></label><label>题量<select name="count"><option>10</option><option>20</option><option>30</option></select></label><button class="primary-button" type="submit">保存作业</button></form></div><div class="teacher-lists"><div><h4>班级列表</h4><ul>${classRows}</ul></div><div><h4>最近作业</h4><ul>${assignmentRows}</ul></div></div></section><section class="dashboard-card table-card"><h3>十二经脉学习覆盖</h3><table class="meridian-table"><thead><tr><th>经脉</th><th>穴位数</th><th>覆盖进度</th><th>已学习</th></tr></thead><tbody>${rows}</tbody></table></section><section class="dashboard-card" style="margin-top:18px"><span class="dash-label">当前浏览器覆盖率</span><strong class="dash-number">${seenPercent}%</strong><span class="dash-note">正式版将替换为班级整体数据，并提供完成率、正确率、易错穴位和经脉对比。</span></section><section class="dashboard-card" style="margin-top:18px"><div class="side-card-header"><h3>正式图片版本</h3><span class="feature-tag">${escapeHtml(state.data.version)}</span></div><div class="stat-row" style="margin-top:0"><div class="stat-item"><strong>${originalImages}</strong><span>原始主图</span></div><div class="stat-item"><strong>${supplementImages}</strong><span>补图</span></div><div class="stat-item"><strong>${reviewedImages}/${state.data.pointCount}</strong><span>已纳入题库</span></div></div><p class="empty-note" style="margin-top:14px">当前正式题库不引用后续优化图和第三步试验图。</p></section>`;
   document.querySelector("#export-progress").addEventListener("click", exportLocalProgress);
   document.querySelector("#back-student").addEventListener("click", () => setView("practice"));
   document.querySelector("#class-form").addEventListener("submit", (event) => { event.preventDefault(); const form = event.currentTarget; const data = new FormData(form); createTeacherRecord("/api/classes", "xuejian-classes-v1", { name: data.get("name"), grade: data.get("grade") }, "class"); renderTeacher(); });
@@ -476,18 +498,42 @@ function renderAdmin() {
   const isImagePending = (point) => !String(point.imageMarkerStatus || "").includes("已确认");
   const pending = state.data.points.filter(isLocationPending).length;
   const filters = [{ value: "all", label: "全部检查" }, { value: "location", label: "现代定位待补齐" }, { value: "image", label: "图片标记待确认" }];
+  let page = 0;
+  let selectedId = "";
+  let reviewNotes = {};
+  try { reviewNotes = JSON.parse(localStorage.getItem("xuejian-admin-review-notes-v1") || "{}"); } catch (_) { reviewNotes = {}; }
+  if (!reviewNotes || Array.isArray(reviewNotes) || typeof reviewNotes !== "object") reviewNotes = {};
   let activeFilter = "all";
   try { activeFilter = sessionStorage.getItem("xuejian-admin-filter") || "all"; } catch (_) { activeFilter = "all"; }
   const matches = (point, filter) => filter === "all" ? (isLocationPending(point) || isImagePending(point)) : (filter === "location" ? isLocationPending(point) : isImagePending(point));
   const render = (filter) => {
     const queue = state.data.points.filter((point) => matches(point, filter));
-    const rows = queue.slice(0, 24).map((point) => `<tr><td><strong>${escapeHtml(point.id)} · ${escapeHtml(point.name)}</strong><span class="table-subtext">${escapeHtml(point.meridian)}</span></td><td>${escapeHtml(point.locationStatus || "待复核")}</td><td>${escapeHtml(point.imageMarkerStatus || "待确认")}</td><td><span class="feature-tag">${escapeHtml(point.reviewStatus || "待审")}</span></td></tr>`).join("") || '<tr><td colspan="4" class="empty-note">当前筛选没有待审条目。</td></tr>';
+    const pageCount = Math.max(1, Math.ceil(queue.length / 24));
+    page = Math.min(page, pageCount - 1);
+    const pageRows = queue.slice(page * 24, (page + 1) * 24);
+    if (!pageRows.some((point) => point.id === selectedId)) selectedId = pageRows[0]?.id || "";
+    const selectedPoint = pageRows.find((point) => point.id === selectedId);
+    const rows = pageRows.map((point) => `<tr><td><button type="button" class="admin-point-link${point.id === selectedId ? " active" : ""}" data-admin-point="${escapeHtml(point.id)}">${escapeHtml(point.id)} · ${escapeHtml(point.name)}</button><span class="table-subtext">${escapeHtml(point.meridian)}</span></td><td>${escapeHtml(point.locationStatus || "待复核")}</td><td>${escapeHtml(point.imageMarkerStatus || "待确认")}</td><td><span class="feature-tag">${reviewNotes[point.id] ? "已记疑点" : escapeHtml(point.reviewStatus || "待审")}</span></td></tr>`).join("") || '<tr><td colspan="4" class="empty-note">当前筛选没有待审条目。</td></tr>';
     const optionHtml = filters.map((item) => `<option value="${item.value}" ${item.value === filter ? "selected" : ""}>${item.label}</option>`).join("");
-    root.innerHTML = `<div class="dashboard-header"><div><div class="eyebrow">ADMIN CONSOLE</div><h2>题库与发布检查</h2><p>管理端与教师端共用响应式页面；当前为本地演示，不依赖实时 AI 或云端登录。</p></div><div class="dashboard-actions"><button class="ghost-button" id="admin-export">导出题库摘要</button><button class="primary-button" id="admin-student">进入学生练习</button></div></div><div class="dashboard-stats"><div class="dashboard-card"><span class="dash-label">题库条目</span><strong class="dash-number">${state.data.pointCount}</strong><span class="dash-note">309 个穴位</span></div><div class="dashboard-card"><span class="dash-label">来源摘录</span><strong class="dash-number">${state.data.points.filter((p) => p.originalBasis).length}</strong><span class="dash-note">全部可追溯</span></div><div class="dashboard-card"><span class="dash-label">特定穴分类</span><strong class="dash-number">${categoryCount}</strong><span class="dash-note">统一分类表</span></div><div class="dashboard-card"><span class="dash-label">定位复核</span><strong class="dash-number">${pending}</strong><span class="dash-note">待补齐定位</span></div></div><section class="dashboard-card" style="margin-top:18px"><div class="side-card-header"><h3>发布前固定检查</h3><span class="feature-tag">${escapeHtml(state.data.version)}</span></div><p class="empty-note">正式图片：${state.data.points.filter((p) => p.imageStatus === "原始主图（保留）").length} 张原始主图 + ${state.data.points.filter((p) => p.imageStatus === "补图（保留）").length} 张补图（神门、睛明、浮郄）。不引用第二步优化图或第三步试验图。</p><div class="category-chips">${Object.entries(state.data.categoryIndex || {}).map(([name, ids]) => `<span class="feature-tag">${escapeHtml(name)} ${ids.length}</span>`).join("")}</div></section><section class="dashboard-card table-card review-queue"><div class="side-card-header"><div><h3>人工复核队列</h3><p class="empty-note">共 ${queue.length} 条，当前展示前 ${Math.min(queue.length, 24)} 条；先复核现代定位和图片标记，不将 AI 推测写成原著依据。</p></div><label class="review-filter">筛选<select id="review-filter">${optionHtml}</select></label></div><table class="meridian-table"><thead><tr><th>穴位</th><th>现代定位</th><th>图片标记</th><th>解析状态</th></tr></thead><tbody>${rows}</tbody></table></section><section class="dashboard-card" style="margin-top:18px"><h3>审核规则</h3><p class="empty-note">原著依据、现代定位、图片线索和记忆提示分层显示；现代定位已按现行国家标准填入；图片标记仍需逐图确认，不能把 AI 推测写成原著观点。</p></section>`;
+    root.innerHTML = `<div class="dashboard-header"><div><div class="eyebrow">题库案头 · 发布检查</div><h2>题库与发布检查</h2><p>查看题库来源、审核队列与发布前检查。当前记录保存在本机。</p></div><div class="dashboard-actions"><button class="ghost-button" id="admin-export">导出题库摘要</button><button class="primary-button" id="admin-student">进入学生练习</button></div></div><div class="dashboard-stats"><div class="dashboard-card"><span class="dash-label">题库条目</span><strong class="dash-number">${state.data.pointCount}</strong><span class="dash-note">309 个穴位</span></div><div class="dashboard-card"><span class="dash-label">来源摘录</span><strong class="dash-number">${state.data.points.filter((p) => p.originalBasis).length}</strong><span class="dash-note">全部可追溯</span></div><div class="dashboard-card"><span class="dash-label">特定穴分类</span><strong class="dash-number">${categoryCount}</strong><span class="dash-note">统一分类表</span></div><div class="dashboard-card"><span class="dash-label">定位复核</span><strong class="dash-number">${pending}</strong><span class="dash-note">待补齐定位</span></div></div><section class="dashboard-card" style="margin-top:18px"><div class="side-card-header"><h3>发布前固定检查</h3><span class="feature-tag">${escapeHtml(state.data.version)}</span></div><p class="empty-note">正式图片：${state.data.points.filter((p) => p.imageStatus === "原始主图（保留）").length} 张原始主图 + ${state.data.points.filter((p) => p.imageStatus === "补图（保留）").length} 张补图（神门、睛明、浮郄）。不引用第二步优化图或第三步试验图。</p><div class="category-chips">${Object.entries(state.data.categoryIndex || {}).map(([name, ids]) => `<span class="feature-tag">${escapeHtml(name)} ${ids.length}</span>`).join("")}</div></section><section class="dashboard-card table-card review-queue"><div class="side-card-header"><div><h3>人工复核队列</h3><p class="empty-note">共 ${queue.length} 条，当前展示前 ${Math.min(queue.length, 24)} 条；先复核现代定位和图片标记，不将 AI 推测写成原著依据。</p></div><label class="review-filter">筛选<select id="review-filter">${optionHtml}</select></label></div><table class="meridian-table"><thead><tr><th>穴位</th><th>现代定位</th><th>图片标记</th><th>解析状态</th></tr></thead><tbody>${rows}</tbody></table></section><section class="dashboard-card" style="margin-top:18px"><h3>审核规则</h3><p class="empty-note">原著依据、现代定位、图片线索和记忆提示分层显示；现代定位已按现行国家标准填入；图片标记仍需逐图确认，不能把 AI 推测写成原著观点。</p></section>`;
+    const workbench = selectedPoint ? `<div class="admin-review-workbench"><div class="admin-review-image point-detail-image">${imageMarkup(selectedPoint, "detail-image")}</div><div class="admin-review-copy"><div class="section-kicker">${escapeHtml(selectedPoint.meridian)} · ${escapeHtml(selectedPoint.id)}</div><h4>${escapeHtml(selectedPoint.name)}</h4><p><strong>现代定位：</strong>${escapeHtml(selectedPoint.locationText || "")}</p><p><strong>图片线索：</strong>${escapeHtml(selectedPoint.imageClue || "")}</p><p><strong>图片标记待核：</strong>${escapeHtml(selectedPoint.imageMarkerStatus || "")}</p><p><strong>图片用途：</strong>${escapeHtml(studentImageUse(selectedPoint))}</p><details><summary>原著原始材料</summary><p>${escapeHtml(selectedPoint.originalBasis || "")}</p></details><label for="admin-review-note">本机核查备注</label><textarea id="admin-review-note" rows="3" placeholder="记录要对照的红点、参照点或解析疑点；保存备注不代表专业审核通过。">${escapeHtml(reviewNotes[selectedPoint.id]?.note || "")}</textarea><div class="admin-review-actions"><button type="button" class="primary-button" id="admin-review-save">保存备注</button><span class="empty-note">仅保存在本机，可随题库摘要导出。</span></div></div></div>` : "";
+    root.querySelector(".review-queue .empty-note").textContent = `共 ${queue.length} 条，当前展示第 ${queue.length ? page * 24 + 1 : 0}–${Math.min(queue.length, (page + 1) * 24)} 条。选择穴位查看正式原图和定位，记录疑点后导出。`;
+    root.querySelector(".review-queue").insertAdjacentHTML("beforeend", `<div class="admin-queue-pager"><span>第 ${page + 1} / ${pageCount} 页 · ${queue.length ? page * 24 + 1 : 0}–${Math.min(queue.length, (page + 1) * 24)} / ${queue.length} 条</span><div><button type="button" class="ghost-button" id="admin-previous"${page === 0 ? " disabled" : ""}>上一页</button><button type="button" class="ghost-button" id="admin-next"${page >= pageCount - 1 ? " disabled" : ""}>下一页</button></div></div>${workbench}`);
+    bindImageEvents();
+    root.querySelectorAll("[data-admin-point]").forEach((button) => button.addEventListener("click", () => { selectedId = button.dataset.adminPoint; render(filter); }));
+    root.querySelector("#admin-previous").addEventListener("click", () => { page -= 1; render(filter); });
+    root.querySelector("#admin-next").addEventListener("click", () => { page += 1; render(filter); });
+    root.querySelector("#admin-review-save")?.addEventListener("click", () => {
+      const note = root.querySelector("#admin-review-note").value.trim();
+      if (note) reviewNotes[selectedId] = { note, updatedAt: new Date().toISOString() };
+      else delete reviewNotes[selectedId];
+      writeLocalStorage("xuejian-admin-review-notes-v1", JSON.stringify(reviewNotes));
+      render(filter);
+    });
     document.querySelector("#admin-student").addEventListener("click", () => setView("practice"));
-    document.querySelector("#review-filter").addEventListener("change", (event) => { try { sessionStorage.setItem("xuejian-admin-filter", event.target.value); } catch (_) {} render(event.target.value); });
+    document.querySelector("#review-filter").addEventListener("change", (event) => { page = 0; try { sessionStorage.setItem("xuejian-admin-filter", event.target.value); } catch (_) {} render(event.target.value); });
     document.querySelector("#admin-export").addEventListener("click", () => {
-      const blob = new Blob([JSON.stringify({ version: state.data.version, pointCount: state.data.pointCount, categories: state.data.categoryIndex, reviewQueue: queue }, null, 2)], { type: "application/json" });
+      const blob = new Blob([JSON.stringify({ version: state.data.version, pointCount: state.data.pointCount, categories: state.data.categoryIndex, reviewQueue: queue, localReviewNotes: reviewNotes }, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = "xuejian-question-bank-summary.json"; anchor.click(); URL.revokeObjectURL(url);
     });
   };
@@ -553,6 +599,7 @@ function bindNavigation() {
 async function boot() {
   try {
     state.data = await loadQuestionBank();
+    document.querySelector('[data-view="practice"] .nav-pill').textContent = String(state.data.points.filter(isImageQuizEligible).length);
     document.body.dataset.view = "practice";
     renderMeridianList();
     bindNavigation();
