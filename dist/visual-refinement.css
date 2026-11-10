@@ -280,3 +280,45 @@ body[data-view="admin"] .admin-review-actions { display: flex; align-items: cent
   body[data-view="teacher"] .view-root,
   body[data-view="admin"] .view-root { padding-bottom: 48px; }
 }
+
+/* A visible chapter meter makes each successful match feel like progress. */
+body[data-view="points"] .game-hud,
+body[data-view="match"] .game-hud {
+  --hud-fill: #9ce8d0;
+  --hud-empty: rgba(212, 250, 235, .22);
+  display: grid;
+  width: min(100%, 700px);
+  gap: 8px;
+  padding: 12px 16px;
+  line-height: 1.3;
+  margin: 8px 0 12px;
+}
+body[data-view="match"] .game-hud { --hud-fill: #f4cc82; --hud-empty: rgba(255, 232, 190, .22); }
+.game-hud-heading, .game-hud-details { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.game-hud-heading strong { font: 700 15px/1.2 var(--serif); letter-spacing: .04em; }
+.game-hud-heading b { padding-left: 5px; font: 800 20px/1.1 system-ui, sans-serif; }
+.game-hud-heading small { font-size: 12px; opacity: .78; }
+.game-hud-mode, .game-hud-score { font-size: 11px; font-weight: 800; letter-spacing: .04em; }
+.game-hud-score { padding: 5px 9px; border: 1px solid currentColor; border-radius: 999px; }
+.game-hud-track { display: grid; grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; gap: 5px; min-height: 11px; }
+.game-hud-track i { display: block; min-width: 0; border-radius: 3px; background: var(--hud-empty); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .18); }
+.game-hud-track i.complete { background: var(--hud-fill); box-shadow: 0 0 10px var(--hud-fill), inset 0 1px 1px rgba(255, 255, 255, .5); animation: gameMilestone .35s ease-out both; }
+.game-hud-details { font-size: 11px; font-weight: 600; opacity: .95; }
+.game-hud-timer { flex: 0 0 auto; font-weight: 800; font-variant-numeric: tabular-nums; }
+.game-hud-timer.urgent { color: #ffbd9b; animation: gameClock 1s ease-in-out infinite alternate; }
+body[data-view="match"] .game-hud-timer.urgent { color: #ffe5a9; }
+@keyframes gameMilestone { from { transform: scaleX(.4); opacity: .3; } to { transform: scaleX(1); opacity: 1; } }
+@keyframes gameClock { to { opacity: .5; } }
+@media (max-width: 520px) {
+  body[data-view="points"] .special-hero, body[data-view="match"] .special-hero { min-height: 0; padding: 17px 20px; }
+  body[data-view="points"] .special-hero h2, body[data-view="match"] .special-hero h2 { font-size: 26px; }
+  body[data-view="points"] .special-rules, body[data-view="match"] .special-rules { margin-top: 9px; }
+  body[data-view="points"] .special-controls, body[data-view="match"] .special-controls { margin-top: 9px; }
+  body[data-view="points"] .game-hud, body[data-view="match"] .game-hud { width: 100%; margin: 3px 0 10px; padding: 10px 13px; gap: 7px; }
+  .game-hud-heading strong { font-size: 13px; }
+  .game-hud-heading b { font-size: 18px; }
+  .game-hud-details { font-size: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .game-hud-track i.complete, .game-hud-timer.urgent { animation: none; }
+}
