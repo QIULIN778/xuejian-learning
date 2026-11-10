@@ -565,6 +565,7 @@ function exportLocalProgress() {
 function setView(view) {
   if (typeof specialStop === "function") specialStop();
   state.view = view;
+  window.scrollTo(0, 0);
   document.body.dataset.view = view;
   state.role = view === "teacher" || view === "admin" ? view : "student";
   document.querySelectorAll(".role-button").forEach((button) => {

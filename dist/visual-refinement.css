@@ -241,3 +241,42 @@ body[data-view="admin"] .admin-review-actions { display: flex; align-items: cent
   body[data-view="admin"] .review-queue .meridian-table td:nth-child(4)::before { content: "解析状态"; }
   body[data-view="admin"] .review-queue .meridian-table td:nth-child(4) { grid-column: 1 / -1; }
 }
+
+/* A compact mobile game dock keeps the three learning rooms within reach. */
+@media (max-width: 520px) {
+  .sidebar { padding-top: 9px; padding-bottom: 8px; }
+  .brand-lockup { padding-bottom: 7px; }
+  .role-switch { margin-bottom: 5px; }
+  .secondary-nav { margin-top: 5px; }
+  .secondary-nav .nav-item { min-height: 36px; }
+  .primary-nav {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 30;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+    padding: 7px 10px calc(7px + env(safe-area-inset-bottom));
+    border-top: 1px solid rgba(236, 221, 181, .3);
+    background: rgba(23, 43, 41, .98);
+    box-shadow: 0 -10px 25px rgba(15, 35, 31, .18);
+  }
+  .primary-nav .nav-item {
+    min-height: 56px;
+    border-radius: 9px;
+    padding: 5px 2px;
+    gap: 2px;
+    align-content: center;
+  }
+  .primary-nav .nav-icon { width: 21px; height: 21px; flex-basis: 21px; font-size: 11px; }
+  .primary-nav .nav-item > span:nth-child(2) { font-size: 11px; line-height: 1.15; letter-spacing: 0; }
+  .primary-nav .nav-item.active { box-shadow: inset 0 2px #9c5d3f; }
+  body[data-view="points"] .primary-nav .nav-item.active { background: #d9eee7; color: #174b47; border-color: #a5d4c6; box-shadow: inset 0 2px #388476; }
+  body[data-view="match"] .primary-nav .nav-item.active { background: #ffe1b5; color: #663a4b; border-color: #ffd09c; box-shadow: inset 0 2px #d47f66; }
+  .view-root { padding-bottom: calc(112px + env(safe-area-inset-bottom)); }
+  body[data-view="teacher"] .primary-nav,
+  body[data-view="admin"] .primary-nav,
+  body[data-view="teacher"] .secondary-nav,
+  body[data-view="admin"] .secondary-nav { display: none; }
+  body[data-view="teacher"] .view-root,
+  body[data-view="admin"] .view-root { padding-bottom: 48px; }
+}
