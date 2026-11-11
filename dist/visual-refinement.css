@@ -162,6 +162,7 @@ body[data-view="teacher"] .dashboard-card h3, body[data-view="admin"] .dashboard
 @media (max-width: 1150px) { .folio-illustration { opacity: .24; right: 13px; } body[data-view="practice"] .dashboard-grid, body[data-view="review"] .dashboard-grid { grid-template-columns: 1fr; } }
 @media (max-width: 900px) { .sidebar { width: 210px; flex-basis: 210px; } .brand-name { font-size: 17px; } .brand-subtitle { font-size: 8px; } .game-hero-art { transform: scale(.8); transform-origin: right center; } }
 @media (max-width: 720px) {
+  .feedback-panel { scroll-margin-top: 12px; scroll-margin-bottom: calc(160px + env(safe-area-inset-bottom)); }
   .app-shell { display: block; }
   .sidebar { width: 100%; height: auto; position: static; padding: 14px 14px 12px; box-shadow: none; }
   .sidebar::before { height: 100%; }

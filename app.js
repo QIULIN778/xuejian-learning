@@ -303,6 +303,13 @@ function selectAnswer(optionId) {
   feedback.querySelector(".memory-copy").textContent = state.current.memoryHint || "先定位身体部位，再用图中线索记忆。";
   feedback.querySelector(".source-copy").textContent = `${state.current.sourceAnchor || state.current.sourceExcerpt || "暂无释名依据。"} 来源：${state.current.sourceReference || "题库资料"}`;
   document.querySelector("#next-question").textContent = state.sessionIndex === state.queue.length - 1 ? "查看本组结果" : "下一题";
+  if (window.matchMedia("(max-width: 720px)").matches) {
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    requestAnimationFrame(() => feedback.scrollIntoView({
+      behavior: reducedMotion ? "auto" : "smooth",
+      block: "nearest",
+    }));
+  }
 }
 
 function renderPractice() {
