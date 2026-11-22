@@ -123,9 +123,15 @@ function saveMode() {
 }
 
 function saveStats() {
-  writeLocalStorage("xuejian-progress-v1", JSON.stringify(state.stats));
+  const payload = JSON.stringify(state.stats);
+  let saved = false;
+  try {
+    localStorage.setItem("xuejian-progress-v1", payload);
+    saved = localStorage.getItem("xuejian-progress-v1") === payload;
+  } catch (_) { saved = false; }
   syncToLocalApi("/api/progress", { userId: "demo", progress: state.stats });
   refreshReviewBadge();
+  return saved;
 }
 
 function specialReviewItems(now = Date.now()) {
@@ -145,8 +151,8 @@ function specialReviewItems(now = Date.now()) {
 function refreshReviewBadge() {
   const count = document.querySelector("#wrong-count");
   if (!count || !state.data) return;
-  const imageDue = state.data.points.filter((point) => isImageQuizEligible(point) && (Number(state.stats.review[point.id]?.errors) || 0) > 0 && window.XuejianReviewScheduler.due(state.stats.review[point.id])).length;
-  count.textContent = String(imageDue + specialReviewItems().filter((item) => item.due).length);
+  const imageHistory = state.data.points.filter((point) => (Number(state.stats.review[point.id]?.errors) || 0) > 0).length;
+  count.textContent = String(imageHistory + specialReviewItems().length);
 }
 
 function saveFavorites() {
@@ -429,8 +435,7 @@ function isImageQuizEligible(point) {
 
 function currentPool() {
   if (state.view === "review") {
-    const now = Date.now();
-    return state.data.points.filter((point) => isImageQuizEligible(point) && (Number(state.stats.review[point.id]?.errors) || 0) > 0 && window.XuejianReviewScheduler.due(state.stats.review[point.id], now));
+    return state.data.points.filter((point) => isImageQuizEligible(point) && (Number(state.stats.review[point.id]?.errors) || 0) > 0);
   }
   if (state.meridian === "全部经脉") return state.data.points.filter(isImageQuizEligible);
   return state.data.points.filter((point) => isImageQuizEligible(point) && point.meridian === state.meridian);
@@ -544,7 +549,7 @@ function selectAnswer(optionId) {
       state.queue.splice(Math.min(state.sessionIndex + 3, state.queue.length), 0, state.current);
     }
   }
-  saveStats();
+  const saved = saveStats();
   document.querySelectorAll(".option-button").forEach((button) => {
     const id = button.dataset.id;
     button.disabled = true;
@@ -553,6 +558,8 @@ function selectAnswer(optionId) {
   });
   const feedback = document.querySelector("#feedback-panel");
   feedback.classList.add("visible");
+  const saveWarning = feedback.querySelector("#progress-save-warning");
+  if (saveWarning) saveWarning.hidden = saved;
   const reviewNote = document.querySelector("#image-review-note");
   if (reviewNote && state.mode === "test") reviewNote.outerHTML = imageReviewNote(state.current);
   feedback.querySelector(".feedback-title").className = `feedback-title ${isCorrect ? "good" : "bad"}`;
@@ -578,6 +585,7 @@ function renderPractice() {
   if (!point) return renderEmptyReview();
   const isReview = state.view === "review";
   const reviewCount = currentPool().length;
+  const reviewDue = isReview ? currentPool().filter((item) => window.XuejianReviewScheduler.due(state.stats.review[item.id])).length : 0;
   const letters = ["A", "B", "C", "D"];
   const optionsHtml = state.options.map((option, index) => `
     <button class="option-button" data-id="${escapeHtml(option.id)}">
@@ -587,7 +595,7 @@ function renderPractice() {
   const image = imageMarkup(point, "question-image", true);
   root.innerHTML = `
     <div class="welcome-row">
-      <div><div class="eyebrow">第一研习室 · 图谱识记</div><h1>${isReview ? "重看旧题，温故知新" : "循图辨穴，识其所在"}</h1><p class="lead">${isReview ? `当前待复习 ${reviewCount} 个穴位；答对后按间隔安排下次复习。` : state.mode === "learn" ? "先读题干，再结合原图或标准定位作答；答后对照解析与图片用途说明。" : "测试模式：按题干作答，完成后再查看解析与原图说明。"}</p></div>
+      <div><div class="eyebrow">第一研习室 · 图谱识记</div><h1>${isReview ? "重看旧题，温故知新" : "循图辨穴，识其所在"}</h1><p class="lead">${isReview ? `历史错题 ${reviewCount} 个，其中 ${reviewDue} 个到期；全部可随时重练，到期题优先。` : state.mode === "learn" ? "先读题干，再结合原图或标准定位作答；答后对照解析与图片用途说明。" : "测试模式：按题干作答，完成后再查看解析与原图说明。"}</p></div>
       <div class="folio-illustration" aria-hidden="true"><span class="folio-track"><i></i><i></i><i></i><i></i><i></i></span><span class="folio-seal">识<br>穴</span></div>
       <div class="session-controls">
         <select class="select-control" id="meridian-select" aria-label="选择经脉">${meridianOptions(true)}</select>
@@ -596,6 +604,7 @@ function renderPractice() {
         <button class="ghost-button" id="restart-session">换一组题（记录保留）</button>
       </div>
     </div>
+    ${isReview ? renderImageReview() : ''}
     <div class="dashboard-grid">
       <section class="question-card">
         <div class="question-topline"><span class="section-kicker">${escapeHtml(point.meridian)} · ${state.mode === "test" ? "待作答" : escapeHtml(point.id)}</span><span class="question-index">${state.sessionIndex + 1} / ${state.queue.length}</span><button class="tiny-link ${state.favorites.includes(point.id) ? "active" : ""}" id="favorite-toggle" type="button" aria-pressed="${state.favorites.includes(point.id) ? "true" : "false"}">${state.favorites.includes(point.id) ? "★ 已收藏" : "☆ 收藏"}</button></div>
@@ -607,6 +616,7 @@ function renderPractice() {
         <div class="options">${optionsHtml}</div>
         <div class="feedback-panel" id="feedback-panel">
           <div class="feedback-title"></div>
+          <p id="progress-save-warning" role="alert" hidden>本次答题记录未能保存到浏览器。请关闭无痕模式，检查网站存储权限后重试。</p>
           <p class="feedback-copy"></p>
           <details open><summary>查看分层解析（来源可追溯）</summary><p class="explanation-copy"></p></details>
           <details><summary>现代定位 <span class="review-badge">${escapeHtml(point.locationStatus || "待复核")}</span></summary><p class="location-copy"></p></details>
@@ -627,7 +637,7 @@ function renderPractice() {
       </section>
       ${renderSideColumn()}
     </div>
-    ${isReview ? renderImageReview() + renderSpecialReview() : ''}
+    ${isReview ? renderSpecialReview() : ''}
   `;
   bindPracticeEvents();
   if (isReview) bindSpecialReview();
@@ -649,7 +659,7 @@ function renderSideColumn() {
         <div class="progress-ring"><div class="ring" style="background: conic-gradient(var(--coral) ${degrees}deg, #eee9df ${degrees}deg)"><span class="ring-number">${Math.round((seen / quizCount) * 100)}%</span></div><div class="progress-copy"><strong>${seen ? "继续保持" : "从第一题开始"}</strong><span>已接触 ${seen} / ${quizCount} 个练习穴位<br />完成一组题就会留下学习记录</span></div></div>
         <div class="stat-row"><div class="stat-item"><strong>${total}</strong><span>累计答题</span></div><div class="stat-item"><strong>${accuracy}%</strong><span>正确率</span></div><div class="stat-item"><strong>${dueCount}</strong><span>待复习</span></div></div>
       </section>
-      <section class="side-card"><div class="side-card-header"><h3>记忆复习节奏</h3><span class="feature-tag">间隔复习</span></div><p class="empty-note">答错题稍后重现；答对后按 1、3、7、14 天等间隔复习。错得越多，下次复习越早。</p><div class="review-timeline"><span>1 天</span><span>3 天</span><span>7 天</span><span>14 天</span></div></section>
+      <section class="side-card"><div class="side-card-header"><h3>记忆复习节奏</h3><span class="feature-tag">间隔复习</span></div><p class="empty-note">答错立即进入历史错题并可重练；答对后按 1、3、7、14 天等间隔优先复习。错得越多，下次复习越早。</p><div class="review-timeline"><span>1 天</span><span>3 天</span><span>7 天</span><span>14 天</span></div></section>
       <section class="side-card"><div class="side-card-header"><h3>易错穴位</h3><button class="tiny-link" data-view-link="review">复习</button></div>${topWrong.length ? `<div class="memory-list">${topWrong.map((point) => `<div class="memory-item"><span class="memory-dot">${escapeHtml(point.id.replace(/\d/g, ""))}</span><div><strong>${escapeHtml(point.name)}</strong><span>${escapeHtml(point.meridian)}</span></div><em>错 ${state.stats.review[point.id].errors} 次</em></div>`).join("")}</div>` : `<div class="empty-note">做错的题目会自动出现在这里。</div>`}</section>
     </aside>
   `;
@@ -707,7 +717,7 @@ function renderSessionComplete() {
 
 function renderEmptyReview() {
   pageContext.textContent = "错题复习";
-  root.innerHTML = `<div class="empty-state"><div class="empty-icon">✓</div><h3>识图暂时没有待复习穴位</h3><p>历史错题和累计错误次数仍可在下方查看；新到期的穴位会再次进入复习。</p><div style="margin-top:18px"><button class="primary-button" id="go-practice">开始练习</button></div></div>${renderImageReview()}${renderSpecialReview()}`;
+  root.innerHTML = `<div class="empty-state"><div class="empty-icon">✓</div><h3>还没有识图历史错题</h3><p>答错的题会立即记入这里，并保留累计错误次数。</p><div style="margin-top:18px"><button class="primary-button" id="go-practice">开始练习</button></div></div>${renderImageReview()}${renderSpecialReview()}`;
   document.querySelector("#go-practice").addEventListener("click", () => setView("practice"));
   bindSpecialReview();
 }

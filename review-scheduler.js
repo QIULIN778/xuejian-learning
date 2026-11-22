@@ -28,7 +28,8 @@
     const errors = (Number(previous.errors) || 0) + (correct ? 0 : 1);
     const streak = correct ? Math.min(6, (Number(previous.streak) || 0) + 1) : 0;
     // Fixed review intervals are an application policy, not an exact Ebbinghaus formula.
-    const interval = correct ? Math.max(60 * 60 * 1000, Math.round(INTERVALS[streak - 1] / (1 + errors * 0.5))) : 10 * 60 * 1000;
+    // A wrong answer enters the review queue immediately. Successful recall schedules the next interval.
+    const interval = correct ? Math.max(60 * 60 * 1000, Math.round(INTERVALS[streak - 1] / (1 + errors * 0.5))) : 0;
     data.review[id] = { errors, streak, lastAnsweredAt: now, dueAt: now + interval };
     data.total += 1;
     if (correct) data.correct += 1;
