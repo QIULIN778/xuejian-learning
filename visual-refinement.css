@@ -483,3 +483,33 @@ body[data-view="practice"] .image-stage.image-load-error, body[data-view="review
 @media (max-width: 720px) { body[data-view="practice"] .question-prompt, body[data-view="review"] .question-prompt { margin: 12px 2px 14px; padding: 10px 12px; border-left: 4px solid #446f55; background: #f4f4e8; } body[data-view="practice"] .image-stage.image-is-loading, body[data-view="review"] .image-stage.image-is-loading { min-height: 210px; } }
 
 @media (max-width: 720px) { body[data-view="practice"] .practice-mode-switch, body[data-view="review"] .practice-mode-switch, body[data-view="practice"] #restart-session, body[data-view="review"] #restart-session { grid-column: 1 / -1; } }
+
+/* Review is a correction workflow: show the rule before the list and the question. */
+body[data-view="review"] .welcome-row { min-height: 0; padding-block: 25px; }
+body[data-view="review"] .welcome-row h1 { font-size: clamp(28px, 3vw, 39px); }
+body[data-view="review"] .welcome-row .lead { max-width: 530px; margin-bottom: 0; }
+body[data-view="review"] .session-controls { gap: 8px; }
+body[data-view="review"] .practice-mode-switch { border-width: 1px; padding: 6px; }
+body[data-view="review"] .practice-mode-switch button { min-height: 48px; font-size: 14px; }
+body[data-view="review"] .practice-mode-switch button small { display: none; }
+.review-rule-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 17px 0 10px; }
+.review-rule-steps > div { display: grid; align-content: start; gap: 4px; min-width: 0; padding: 12px 13px; border: 1px solid #d4e2d9; border-radius: 9px; background: #fffdf8; }
+.review-rule-steps b { color: #245747; font-size: 12px; }
+.review-rule-steps span { color: #354e42; font-size: 12px; line-height: 1.5; }
+.review-rule-note { margin: 0 0 8px; color: #51675b; font-size: 12px; line-height: 1.6; }
+.session-complete-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 18px; }
+@media (max-width: 720px) {
+  body[data-view="review"] .welcome-row { padding: 19px 20px; margin-bottom: 10px; }
+  body[data-view="review"] .welcome-row h1 { font-size: 28px; }
+  body[data-view="review"] .session-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 8px; }
+  body[data-view="review"] .practice-mode-switch { grid-column: 1 / -1; }
+  body[data-view="review"] #leave-review, body[data-view="review"] #restart-session { grid-column: auto; min-width: 0; }
+  body[data-view="review"] .special-review-panel { margin-top: 10px; }
+  .review-rule-steps { grid-template-columns: 1fr; gap: 6px; margin-top: 14px; }
+  .review-rule-steps > div { grid-template-columns: 73px 1fr; align-items: baseline; padding: 9px 11px; }
+}
+@media (max-width: 520px) {
+  body[data-view="practice"] .role-switch, body[data-view="review"] .role-switch,
+  body[data-view="points"] .role-switch, body[data-view="match"] .role-switch,
+  body[data-view="atlas"] .role-switch { display: none; }
+}

@@ -460,11 +460,11 @@ function renderImageReview() {
     const timing = !eligible ? "暂停识图，可在图鉴查看" : isDue ? "现在可复习" : dueAt ? `下次 ${escapeHtml(new Date(dueAt).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }))}` : "按间隔稍后复习";
     return `<div class="special-review-item"><div><strong>${escapeHtml(point.name)} <small>${escapeHtml(point.id)}</small></strong><span>${escapeHtml(point.meridian)} · 本轮错 ${errors} 次</span><em>${timing}</em></div></div>`;
   };
-  const first = items.slice(0, 6).map(renderItem).join("");
-  const remaining = items.slice(6);
+  const first = items.slice(0, 3).map(renderItem).join("");
+  const remaining = items.slice(3);
   const more = remaining.length ? `<details class="special-review-more-details"><summary>查看其余 ${remaining.length} 个识图错题及错误次数</summary><div class="special-review-list">${remaining.map(renderItem).join("")}</div></details>` : "";
   const list = items.length ? `<div class="special-review-list">${first}</div>${more}` : '<p class="special-review-empty">目前没有待纠正的识图错题；答错后会立即出现在这里。</p>';
-  return `<section class="special-review-panel" aria-label="识图错题库"><div class="special-review-heading"><div><span class="section-kicker">第一研习室 · 识图复习</span><h2>识图错题库</h2><p>答错立即入库；在这里答对后移除，再次答错才重新入库。所有在库题可随时重练。</p></div><span class="special-review-total">${due} 个到期 · ${items.length} 个待纠正</span></div>${list}</section>`;
+  return `<section class="special-review-panel" aria-label="识图错题库"><div class="special-review-heading"><div><span class="section-kicker">第一研习室 · 识图复习</span><h2>识图错题库</h2><p>把答错的穴位练会，再从这里移出。</p></div><span class="special-review-total">${due} 个到期 · ${items.length} 个待纠正</span></div><div class="review-rule-steps" aria-label="识图错题出入库规则"><div><b>01 · 入库</b><span>普通练习答错，立即加入错题库。</span></div><div><b>02 · 纠正</b><span>在错题复习中答对，立即移出。</span></div><div><b>03 · 再入库</b><span>以后再答错才重新加入，本轮从 1 次计起。</span></div></div><p class="review-rule-note">普通练习答对不会移出已有错题；“到期”只影响推荐顺序，库内题随时可以重练。记录保存在当前浏览器。</p>${list}</section>`;
 }
 
 function renderSpecialReviewItem({ point, errors, due: isDue, dueAt }) {
@@ -609,10 +609,10 @@ function renderPractice() {
   const image = imageMarkup(point, "question-image", true);
   root.innerHTML = `
     <div class="welcome-row">
-      <div><div class="eyebrow">第一研习室 · 图谱识记</div><h1>${isReview ? "重看旧题，温故知新" : "循图辨穴，识其所在"}</h1><p class="lead">${isReview ? `错题库 ${reviewCount} 个，其中 ${reviewDue} 个到期；全部可随时重练，答对即移除。` : state.mode === "learn" ? "先读题干，再结合原图或标准定位作答；答后对照解析与图片用途说明。" : "测试模式：按题干作答，完成后再查看解析与原图说明。"}</p></div>
+      <div><div class="eyebrow">第一研习室 · 图谱识记</div><h1>${isReview ? "把错题练会" : "循图辨穴，识其所在"}</h1><p class="lead">${isReview ? `${reviewCount} 道待纠正 · ${reviewDue} 道到期。按下方规则复习，答对后立即移出错题库。` : state.mode === "learn" ? "先读题干，再结合原图或标准定位作答；答后对照解析与图片用途说明。" : "测试模式：按题干作答，完成后再查看解析与原图说明。"}</p></div>
       <div class="folio-illustration" aria-hidden="true"><span class="folio-track"><i></i><i></i><i></i><i></i><i></i></span><span class="folio-seal">识<br>穴</span></div>
       <div class="session-controls">
-        <select class="select-control" id="meridian-select" aria-label="选择经脉">${meridianOptions(true)}</select>
+        ${isReview ? '' : `<select class="select-control" id="meridian-select" aria-label="选择经脉">${meridianOptions(true)}</select>`}
         <div class="practice-mode-switch" role="group" aria-label="答题模式"><span>答题模式</span><button type="button" data-practice-mode="learn" class="${state.mode === "learn" ? "active" : ""}" aria-pressed="${state.mode === "learn"}">学习模式<small>答后看解析</small></button><button type="button" data-practice-mode="test" class="${state.mode === "test" ? "active" : ""}" aria-pressed="${state.mode === "test"}">测试模式<small>先独立作答</small></button></div>
         ${isReview ? '<button class="ghost-button" id="leave-review" type="button">返回识图学习</button>' : ""}
         <button class="ghost-button" id="restart-session">换一组题（记录保留）</button>
@@ -685,8 +685,11 @@ function meridianOptions(quizOnly = false) {
 }
 
 function bindPracticeEvents() {
-  document.querySelector("#meridian-select").value = state.meridian;
-  document.querySelector("#meridian-select").addEventListener("change", (event) => { state.meridian = event.target.value; startSession(); });
+  const meridianSelect = document.querySelector("#meridian-select");
+  if (meridianSelect) {
+    meridianSelect.value = state.meridian;
+    meridianSelect.addEventListener("change", (event) => { state.meridian = event.target.value; startSession(); });
+  }
   document.querySelectorAll("[data-practice-mode]").forEach((button) => button.addEventListener("click", () => {
     if (state.answered || state.mode === button.dataset.practiceMode) return;
     state.mode = button.dataset.practiceMode;
@@ -724,8 +727,11 @@ function bindPracticeEvents() {
 function renderSessionComplete() {
   pageContext.textContent = state.view === "review" ? "错题复习" : "识图学习";
   const accuracy = state.queue.length ? Math.round((state.sessionCorrect / state.queue.length) * 100) : 0;
-  root.innerHTML = `<div class="empty-state"><div class="empty-icon">✦</div><h3>这一组完成了</h3><p>本组答对 ${state.sessionCorrect} / ${state.queue.length} 题，正确率 ${accuracy}%。${state.view === "review" ? "在错题库答对的穴位已移除；仍答错的穴位继续留在库中。" : "答错的穴位进入错题库；在错题复习中答对后移除。"}</p><div style="margin-top:18px"><button class="primary-button" id="restart-session">再来一组</button></div></div>${state.view === "review" ? renderImageReview() + renderSpecialReview() : ''}`;
+  const nextView = state.view === "review" ? "practice" : state.stats.wrongIds.length ? "review" : "points";
+  const nextLabel = state.view === "review" ? "继续识图学习" : state.stats.wrongIds.length ? "去纠正错题" : "试试经穴连线";
+  root.innerHTML = `<div class="empty-state"><div class="empty-icon">✦</div><h3>这一组完成了</h3><p>本组答对 ${state.sessionCorrect} / ${state.queue.length} 题，正确率 ${accuracy}%。${state.view === "review" ? "在错题库答对的穴位已移除；仍答错的穴位继续留在库中。" : "答错的穴位进入错题库；在错题复习中答对后移除。"}</p><div class="session-complete-actions"><button class="primary-button" id="restart-session">再来一组</button><button class="ghost-button" id="session-next-step" type="button">${nextLabel}</button></div></div>${state.view === "review" ? renderImageReview() + renderSpecialReview() : ''}`;
   document.querySelector("#restart-session").addEventListener("click", startSession);
+  document.querySelector("#session-next-step").addEventListener("click", () => setView(nextView));
   if (state.view === "review") bindSpecialReview();
 }
 
@@ -959,8 +965,10 @@ function renderPortal() {
   const imageCount = imagePoints.length;
   const seenIds = new Set(Array.isArray(state.stats.seenIds) ? state.stats.seenIds : []);
   const seenCount = imagePoints.filter((point) => seenIds.has(point.id)).length;
-  const imageDue = imagePoints.filter((point) => state.stats.wrongIds.includes(point.id) && window.XuejianReviewScheduler.due(state.stats.review[point.id])).length;
-  const dueCount = imageDue + specialReviewItems().filter((item) => item.due).length;
+  const imageWrongCount = imagePoints.filter((point) => state.stats.wrongIds.includes(point.id)).length;
+  const linkWrongCount = specialReviewItems().length;
+  const reviewCount = imageWrongCount + linkWrongCount;
+  const reviewHeadline = imageWrongCount ? `${imageWrongCount} 道识图待纠正` : linkWrongCount ? `${linkWrongCount} 条连线错配记录` : "继续研习";
   const accuracy = state.stats.total ? Math.round(state.stats.correct / state.stats.total * 100) : 0;
   const coverage = imageCount ? Math.round(seenCount / imageCount * 100) : 0;
   root.innerHTML = `
@@ -977,7 +985,7 @@ function renderPortal() {
       <section class="portal-study-desk" aria-labelledby="portal-desk-title">
         <div class="portal-desk-intro"><div class="eyebrow">本机研习书案</div><h2 id="portal-desk-title">从上次学到的地方，接着往前走。</h2><p>记录只保存在当前浏览器；换设备后不会自动同步。</p></div>
         <div class="portal-desk-progress"><div class="portal-desk-measure"><span>已见识图穴位</span><strong>${seenCount}<small> / ${imageCount}</small></strong></div><progress value="${seenCount}" max="${imageCount}" aria-label="已见识图穴位 ${seenCount}，共 ${imageCount}"></progress><span class="portal-desk-footnote">题库覆盖 ${coverage}% · 累计作答 ${state.stats.total} 题 · 正确率 ${accuracy}%</span></div>
-        <div class="portal-desk-review"><span>下一步</span><strong>${dueCount ? `${dueCount} 道待复习` : "继续研习"}</strong><p>${dueCount ? "识图错题与连线身份错配已列入复习。" : "从图谱开始，也可以先试一局新手关。"}</p><button type="button" data-go-view="${dueCount ? "review" : "practice"}">${dueCount ? "进入错题复习" : "开始识图研习"}<span aria-hidden="true">↗</span></button></div>
+        <div class="portal-desk-review"><span>下一步</span><strong>${reviewHeadline}</strong><p>${reviewCount ? `识图待纠正 ${imageWrongCount} 道，连线错配记录 ${linkWrongCount} 条；现在就能重练。` : "从图谱开始，也可以先试一局新手关。"}</p><button type="button" data-go-view="${reviewCount ? "review" : "practice"}">${reviewCount ? "进入错题复习" : "开始识图研习"}<span aria-hidden="true">↗</span></button></div>
       </section>
       <section class="portal-section" aria-labelledby="portal-room-title">
         <div class="portal-section-heading"><div><div class="eyebrow">三间研习室</div><h2 id="portal-room-title">选一种方式开始</h2></div><p>每个模块都有自己的规则与反馈，学习记录留在当前浏览器。</p></div>
@@ -988,7 +996,7 @@ function renderPortal() {
         </div>
       </section>
       <section class="portal-section portal-lower" aria-label="学习路径与访问入口">
-        <div class="portal-path"><div class="eyebrow">学习路径</div><h2>看规则，做练习，再复习</h2><ol><li><b>01</b><span>选经脉或关卡，先读规则与提示</span></li><li><b>02</b><span>完成题目或游戏，查看即时反馈</span></li><li><b>03</b><span>核对解析、标准定位和图片用途</span></li><li><b>04</b><span>按间隔复习计划重做易错穴位</span></li></ol><button class="ghost-button" type="button" data-go-view="review">查看错题复习</button></div>
+        <div class="portal-path"><div class="eyebrow">学习路径</div><h2>看规则，做练习，再复习</h2><ol><li><b>01</b><span>选经脉或关卡，先读规则与提示</span></li><li><b>02</b><span>完成题目或游戏，查看即时反馈</span></li><li><b>03</b><span>核对解析、标准定位和图片用途</span></li><li><b>04</b><span>随时重练错题，参考间隔提示安排先后</span></li></ol><button class="ghost-button" type="button" data-go-view="review">查看错题复习</button></div>
         <div class="portal-access"><div class="eyebrow">访问方式</div><h2>电脑与手机，同一网页</h2><p>手机浏览器或微信内打开下方网址，即可使用网页版；学习记录目前只保存在本机浏览器，尚未跨设备同步。</p><div class="portal-qr-wrap"><img class="portal-qr" src="portal-qr.svg" width="188" height="188" alt="扫码打开循经知微网页版" loading="lazy" /><span>扫码打开网页版</span></div><a href="https://qiulin778.github.io/xuejian-learning/" target="_blank" rel="noopener noreferrer">qiulin778.github.io/xuejian-learning/</a><p class="portal-candidate">微信小程序已有候选代码，仍待 AppID、合法域名与真机验收。上方是网页版二维码，不是小程序码。</p><div class="portal-role-links"><button type="button" data-go-view="teacher">教师看板 · 本机演示</button><button type="button" data-go-view="admin">管理后台 · 本机演示</button></div></div>
       </section>
     </div>`;
