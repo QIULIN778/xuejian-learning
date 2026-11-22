@@ -67,6 +67,12 @@ button:disabled { cursor: default; opacity: .68; }
 .daily-study-footer button { flex: none; }
 .game-result-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
 .game-result-actions button { min-height: 46px; }
+.admin-search { display: grid; gap: 8px; margin: 0 0 18px; }
+.admin-search label { color: #4c6658; font-weight: 700; font-size: 13px; }
+.admin-search > div { display: flex; gap: 9px; }
+.admin-search input { flex: 1; min-width: 0; min-height: 46px; padding: 0 14px; border: 1px solid #c7cfc5; border-radius: 9px; background: #fff; font: inherit; }
+.admin-search input:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+.admin-review-workbench { scroll-margin-top: 20px; }
 
 body[data-view="practice"] .question-card, body[data-view="review"] .question-card { border-top: 4px solid #567759; }
 body[data-view="points"] .game-result { border-top: 4px solid #37887d; }
