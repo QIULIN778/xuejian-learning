@@ -151,8 +151,8 @@ function specialReviewItems(now = Date.now()) {
 function refreshReviewBadge() {
   const count = document.querySelector("#wrong-count");
   if (!count || !state.data) return;
-  const imageHistory = state.data.points.filter((point) => (Number(state.stats.review[point.id]?.errors) || 0) > 0).length;
-  count.textContent = String(imageHistory + specialReviewItems().length);
+  const activeImageWrong = state.data.points.filter((point) => state.stats.wrongIds.includes(point.id)).length;
+  count.textContent = String(activeImageWrong + specialReviewItems().length);
 }
 
 function saveFavorites() {
@@ -435,7 +435,7 @@ function isImageQuizEligible(point) {
 
 function currentPool() {
   if (state.view === "review") {
-    return state.data.points.filter((point) => isImageQuizEligible(point) && (Number(state.stats.review[point.id]?.errors) || 0) > 0);
+    return state.data.points.filter((point) => isImageQuizEligible(point) && state.stats.wrongIds.includes(point.id));
   }
   if (state.meridian === "全部经脉") return state.data.points.filter(isImageQuizEligible);
   return state.data.points.filter((point) => isImageQuizEligible(point) && point.meridian === state.meridian);
@@ -445,7 +445,7 @@ function imageReviewItems() {
   return state.data.points.map((point) => {
     const record = state.stats.review[point.id];
     const errors = Number(record?.errors) || 0;
-    if (errors < 1) return null;
+    if (errors < 1 || !state.stats.wrongIds.includes(point.id)) return null;
     const eligible = isImageQuizEligible(point);
     const nextAt = Number(record.dueAt);
     const dueAt = Number.isFinite(nextAt) && nextAt > 0 && nextAt <= 8.64e15 ? nextAt : 0;
@@ -458,13 +458,13 @@ function renderImageReview() {
   const due = items.filter((item) => item.due).length;
   const renderItem = ({ point, errors, eligible, due: isDue, dueAt }) => {
     const timing = !eligible ? "暂停识图，可在图鉴查看" : isDue ? "现在可复习" : dueAt ? `下次 ${escapeHtml(new Date(dueAt).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }))}` : "按间隔稍后复习";
-    return `<div class="special-review-item"><div><strong>${escapeHtml(point.name)} <small>${escapeHtml(point.id)}</small></strong><span>${escapeHtml(point.meridian)} · 识图累计错 ${errors} 次</span><em>${timing}</em></div></div>`;
+    return `<div class="special-review-item"><div><strong>${escapeHtml(point.name)} <small>${escapeHtml(point.id)}</small></strong><span>${escapeHtml(point.meridian)} · 本轮错 ${errors} 次</span><em>${timing}</em></div></div>`;
   };
   const first = items.slice(0, 6).map(renderItem).join("");
   const remaining = items.slice(6);
   const more = remaining.length ? `<details class="special-review-more-details"><summary>查看其余 ${remaining.length} 个识图错题及错误次数</summary><div class="special-review-list">${remaining.map(renderItem).join("")}</div></details>` : "";
-  const list = items.length ? `<div class="special-review-list">${first}</div>${more}` : '<p class="special-review-empty">目前没有识图历史错题；答错后这里会显示累计次数和复习时间。</p>';
-  return `<section class="special-review-panel" aria-label="识图历史错题"><div class="special-review-heading"><div><span class="section-kicker">第一研习室 · 识图复习</span><h2>识图历史错题</h2><p>历史错误次数持续保留；当前到期题参与上方复习。原图辅助题依据标准定位作答。</p></div><span class="special-review-total">${due} 个待复习 · ${items.length} 个曾答错</span></div>${list}</section>`;
+  const list = items.length ? `<div class="special-review-list">${first}</div>${more}` : '<p class="special-review-empty">目前没有待纠正的识图错题；答错后会立即出现在这里。</p>';
+  return `<section class="special-review-panel" aria-label="识图错题库"><div class="special-review-heading"><div><span class="section-kicker">第一研习室 · 识图复习</span><h2>识图错题库</h2><p>答错立即入库；在这里答对后移除，再次答错才重新入库。所有在库题可随时重练。</p></div><span class="special-review-total">${due} 个到期 · ${items.length} 个待纠正</span></div>${list}</section>`;
 }
 
 function renderSpecialReviewItem({ point, errors, due: isDue, dueAt }) {
@@ -540,6 +540,10 @@ function selectAnswer(optionId) {
   state.selectedOptionId = optionId;
   const isCorrect = optionId === state.current.id;
   window.XuejianReviewScheduler.record(state.stats, state.current.id, isCorrect);
+  if (isCorrect && state.view === "review") {
+    window.XuejianReviewScheduler.resolve(state.stats, state.current.id);
+    state.queue = state.queue.filter((item, index) => index <= state.sessionIndex || item.id !== state.current.id);
+  }
   if (isCorrect) {
     state.sessionCorrect += 1;
   } else {
@@ -558,12 +562,22 @@ function selectAnswer(optionId) {
   });
   const feedback = document.querySelector("#feedback-panel");
   feedback.classList.add("visible");
+  if (state.view === "review") {
+    const list = document.querySelector('[aria-label="识图错题库"]');
+    if (list) list.outerHTML = renderImageReview();
+    const lead = document.querySelector('.welcome-row .lead');
+    if (lead) {
+      const active = currentPool();
+      const due = active.filter((point) => window.XuejianReviewScheduler.due(state.stats.review[point.id])).length;
+      lead.textContent = `错题库 ${active.length} 个，其中 ${due} 个到期；全部可随时重练，答对即移除。`;
+    }
+  }
   const saveWarning = feedback.querySelector("#progress-save-warning");
   if (saveWarning) saveWarning.hidden = saved;
   const reviewNote = document.querySelector("#image-review-note");
   if (reviewNote && state.mode === "test") reviewNote.outerHTML = imageReviewNote(state.current);
   feedback.querySelector(".feedback-title").className = `feedback-title ${isCorrect ? "good" : "bad"}`;
-  feedback.querySelector(".feedback-title").textContent = isCorrect ? "答对了 · 线索已经连上" : `再看一眼 · 正确答案是 ${state.current.name}（累计错 ${state.stats.review[state.current.id].errors} 次）`;
+  feedback.querySelector(".feedback-title").textContent = isCorrect ? state.view === "review" ? "答对了 · 已从错题库移除" : state.stats.wrongIds.includes(state.current.id) ? "答对了 · 此题仍在错题库，请到错题复习中巩固" : "答对了 · 线索已经连上" : `再看一眼 · 正确答案是 ${state.current.name}（已入错题库，本轮错 ${state.stats.review[state.current.id].errors} 次）`;
   feedback.querySelector(".feedback-copy").textContent = state.current.imageQuestionExplanation || state.current.imageClue || state.current.visualCue || "先确认身体部位，再观察图中唯一目标点。";
   feedback.querySelector(".explanation-copy").textContent = state.current.explanation || "这道题的解析正在整理中。";
   feedback.querySelector(".location-copy").textContent = state.current.locationText || "当前资料未提供结构化现代定位；请以教材和配套定位图复核。";
@@ -595,7 +609,7 @@ function renderPractice() {
   const image = imageMarkup(point, "question-image", true);
   root.innerHTML = `
     <div class="welcome-row">
-      <div><div class="eyebrow">第一研习室 · 图谱识记</div><h1>${isReview ? "重看旧题，温故知新" : "循图辨穴，识其所在"}</h1><p class="lead">${isReview ? `历史错题 ${reviewCount} 个，其中 ${reviewDue} 个到期；全部可随时重练，到期题优先。` : state.mode === "learn" ? "先读题干，再结合原图或标准定位作答；答后对照解析与图片用途说明。" : "测试模式：按题干作答，完成后再查看解析与原图说明。"}</p></div>
+      <div><div class="eyebrow">第一研习室 · 图谱识记</div><h1>${isReview ? "重看旧题，温故知新" : "循图辨穴，识其所在"}</h1><p class="lead">${isReview ? `错题库 ${reviewCount} 个，其中 ${reviewDue} 个到期；全部可随时重练，答对即移除。` : state.mode === "learn" ? "先读题干，再结合原图或标准定位作答；答后对照解析与图片用途说明。" : "测试模式：按题干作答，完成后再查看解析与原图说明。"}</p></div>
       <div class="folio-illustration" aria-hidden="true"><span class="folio-track"><i></i><i></i><i></i><i></i><i></i></span><span class="folio-seal">识<br>穴</span></div>
       <div class="session-controls">
         <select class="select-control" id="meridian-select" aria-label="选择经脉">${meridianOptions(true)}</select>
@@ -608,7 +622,7 @@ function renderPractice() {
     <div class="dashboard-grid">
       <section class="question-card">
         <div class="question-topline"><span class="section-kicker">${escapeHtml(point.meridian)} · ${state.mode === "test" ? "待作答" : escapeHtml(point.id)}</span><span class="question-index">${state.sessionIndex + 1} / ${state.queue.length}</span><button class="tiny-link ${state.favorites.includes(point.id) ? "active" : ""}" id="favorite-toggle" type="button" aria-pressed="${state.favorites.includes(point.id) ? "true" : "false"}">${state.favorites.includes(point.id) ? "★ 已收藏" : "☆ 收藏"}</button></div>
-        ${isReview ? `<p class="special-instruction">本题累计答错 ${state.stats.review[point.id]?.errors || 0} 次；答对后按复习间隔再次出现。</p>` : ''}
+        ${isReview ? `<p class="special-instruction">本轮已错 ${state.stats.review[point.id]?.errors || 0} 次；本次答对就从错题库移除。</p>` : ''}
         <div class="question-prompt"><h2>${escapeHtml(point.imageQuestionPrompt || "这张图对应哪个穴位？")}</h2><span class="hint-chip">${point.imageQuestionApproved ? "标准定位辨穴 · 原图辅助" : state.mode === "learn" ? "先看部位，再看线索" : "测试模式 · 提示已隐藏"}</span></div>
         <div class="image-stage">${image}</div>
         ${imageReviewNote(point, state.mode === "test")}
@@ -650,8 +664,8 @@ function renderSideColumn() {
   const quizCount = state.data.points.filter(isImageQuizEligible).length;
   const seen = state.data.points.filter((point) => isImageQuizEligible(point) && state.stats.seenIds.includes(point.id)).length;
   const degrees = Math.round(Math.min(100, (seen / quizCount) * 100) * 3.6);
-  const topWrong = state.data.points.filter((point) => isImageQuizEligible(point) && (state.stats.review[point.id]?.errors || 0) > 0).sort((a, b) => (state.stats.review[b.id]?.errors || 0) - (state.stats.review[a.id]?.errors || 0)).slice(0, 3);
-  const dueCount = state.data.points.filter((point) => isImageQuizEligible(point) && (Number(state.stats.review[point.id]?.errors) || 0) > 0 && window.XuejianReviewScheduler.due(state.stats.review[point.id])).length;
+  const topWrong = state.data.points.filter((point) => isImageQuizEligible(point) && state.stats.wrongIds.includes(point.id)).sort((a, b) => (state.stats.review[b.id]?.errors || 0) - (state.stats.review[a.id]?.errors || 0)).slice(0, 3);
+  const dueCount = state.data.points.filter((point) => isImageQuizEligible(point) && state.stats.wrongIds.includes(point.id) && window.XuejianReviewScheduler.due(state.stats.review[point.id])).length;
   return `
     <aside class="side-column">
       <section class="side-card">
@@ -659,8 +673,8 @@ function renderSideColumn() {
         <div class="progress-ring"><div class="ring" style="background: conic-gradient(var(--coral) ${degrees}deg, #eee9df ${degrees}deg)"><span class="ring-number">${Math.round((seen / quizCount) * 100)}%</span></div><div class="progress-copy"><strong>${seen ? "继续保持" : "从第一题开始"}</strong><span>已接触 ${seen} / ${quizCount} 个练习穴位<br />完成一组题就会留下学习记录</span></div></div>
         <div class="stat-row"><div class="stat-item"><strong>${total}</strong><span>累计答题</span></div><div class="stat-item"><strong>${accuracy}%</strong><span>正确率</span></div><div class="stat-item"><strong>${dueCount}</strong><span>待复习</span></div></div>
       </section>
-      <section class="side-card"><div class="side-card-header"><h3>记忆复习节奏</h3><span class="feature-tag">间隔复习</span></div><p class="empty-note">答错立即进入历史错题并可重练；答对后按 1、3、7、14 天等间隔优先复习。错得越多，下次复习越早。</p><div class="review-timeline"><span>1 天</span><span>3 天</span><span>7 天</span><span>14 天</span></div></section>
-      <section class="side-card"><div class="side-card-header"><h3>易错穴位</h3><button class="tiny-link" data-view-link="review">复习</button></div>${topWrong.length ? `<div class="memory-list">${topWrong.map((point) => `<div class="memory-item"><span class="memory-dot">${escapeHtml(point.id.replace(/\d/g, ""))}</span><div><strong>${escapeHtml(point.name)}</strong><span>${escapeHtml(point.meridian)}</span></div><em>错 ${state.stats.review[point.id].errors} 次</em></div>`).join("")}</div>` : `<div class="empty-note">做错的题目会自动出现在这里。</div>`}</section>
+      <section class="side-card"><div class="side-card-header"><h3>记忆复习节奏</h3><span class="feature-tag">间隔复习</span></div><p class="empty-note">答错立即进入错题库；在错题库答对即移除。答对后的间隔抽题节奏仍按表现调整。</p><div class="review-timeline"><span>1 天</span><span>3 天</span><span>7 天</span><span>14 天</span></div></section>
+      <section class="side-card"><div class="side-card-header"><h3>易错穴位</h3><button class="tiny-link" data-view-link="review">复习</button></div>${topWrong.length ? `<div class="memory-list">${topWrong.map((point) => `<div class="memory-item"><span class="memory-dot">${escapeHtml(point.id.replace(/\d/g, ""))}</span><div><strong>${escapeHtml(point.name)}</strong><span>${escapeHtml(point.meridian)}</span></div><em>本轮错 ${state.stats.review[point.id].errors} 次</em></div>`).join("")}</div>` : `<div class="empty-note">做错的题目会自动出现在这里。</div>`}</section>
     </aside>
   `;
 }
@@ -710,14 +724,14 @@ function bindPracticeEvents() {
 function renderSessionComplete() {
   pageContext.textContent = state.view === "review" ? "错题复习" : "识图学习";
   const accuracy = state.queue.length ? Math.round((state.sessionCorrect / state.queue.length) * 100) : 0;
-  root.innerHTML = `<div class="empty-state"><div class="empty-icon">✦</div><h3>这一组完成了</h3><p>本组答对 ${state.sessionCorrect} / ${state.queue.length} 题，正确率 ${accuracy}%。答错的穴位进入复习，答对的穴位按间隔再现。</p><div style="margin-top:18px"><button class="primary-button" id="restart-session">再来一组</button></div></div>${state.view === "review" ? renderImageReview() + renderSpecialReview() : ''}`;
+  root.innerHTML = `<div class="empty-state"><div class="empty-icon">✦</div><h3>这一组完成了</h3><p>本组答对 ${state.sessionCorrect} / ${state.queue.length} 题，正确率 ${accuracy}%。${state.view === "review" ? "在错题库答对的穴位已移除；仍答错的穴位继续留在库中。" : "答错的穴位进入错题库；在错题复习中答对后移除。"}</p><div style="margin-top:18px"><button class="primary-button" id="restart-session">再来一组</button></div></div>${state.view === "review" ? renderImageReview() + renderSpecialReview() : ''}`;
   document.querySelector("#restart-session").addEventListener("click", startSession);
   if (state.view === "review") bindSpecialReview();
 }
 
 function renderEmptyReview() {
   pageContext.textContent = "错题复习";
-  root.innerHTML = `<div class="empty-state"><div class="empty-icon">✓</div><h3>还没有识图历史错题</h3><p>答错的题会立即记入这里，并保留累计错误次数。</p><div style="margin-top:18px"><button class="primary-button" id="go-practice">开始练习</button></div></div>${renderImageReview()}${renderSpecialReview()}`;
+  root.innerHTML = `<div class="empty-state"><div class="empty-icon">✓</div><h3>当前没有待纠正的识图错题</h3><p>答错立即入库；在错题复习中答对后移除，下次答错再重新入库。</p><div style="margin-top:18px"><button class="primary-button" id="go-practice">开始练习</button></div></div>${renderImageReview()}${renderSpecialReview()}`;
   document.querySelector("#go-practice").addEventListener("click", () => setView("practice"));
   bindSpecialReview();
 }
@@ -945,7 +959,7 @@ function renderPortal() {
   const imageCount = imagePoints.length;
   const seenIds = new Set(Array.isArray(state.stats.seenIds) ? state.stats.seenIds : []);
   const seenCount = imagePoints.filter((point) => seenIds.has(point.id)).length;
-  const imageDue = imagePoints.filter((point) => (Number(state.stats.review[point.id]?.errors) || 0) > 0 && window.XuejianReviewScheduler.due(state.stats.review[point.id])).length;
+  const imageDue = imagePoints.filter((point) => state.stats.wrongIds.includes(point.id) && window.XuejianReviewScheduler.due(state.stats.review[point.id])).length;
   const dueCount = imageDue + specialReviewItems().filter((item) => item.due).length;
   const accuracy = state.stats.total ? Math.round(state.stats.correct / state.stats.total * 100) : 0;
   const coverage = imageCount ? Math.round(seenCount / imageCount * 100) : 0;
