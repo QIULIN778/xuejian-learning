@@ -75,6 +75,12 @@ body[data-design="design-a"] .special-hero { border-radius:0 !important; box-sha
 body[data-design="design-a"][data-view="points"] .special-hero { border:1px solid #87a6a2 !important; background:linear-gradient(110deg,#173c44,#365d64) !important; }
 body[data-design="design-a"][data-view="match"] .special-hero { border:1px solid #d4a174 !important; background:linear-gradient(110deg,#743c32,#a46143) !important; }
 body[data-design="design-a"] .special-rules, body[data-design="design-a"] .special-controls, body[data-design="design-a"] .special-link-board, body[data-design="design-a"] .special-match-board { border-radius:0 !important; }
+body[data-design="design-a"] .special-link-board { border-color:#3d5b5c !important; background:repeating-linear-gradient(0deg,transparent 0 37px,rgba(226,240,222,.08) 38px 39px),#24464a !important; }
+body[data-design="design-a"] .special-link-board .special-tile { border:1px solid #a8c4b9; border-radius:1px; background:#f7f3e6; color:#275157; box-shadow:4px 4px 0 #71948b; }
+body[data-design="design-a"] .special-link-board .special-tile.selected, body[data-design="design-a"] .special-link-board .special-tile.hinted { border-color:#e4c77c; background:#fff0c4; color:#563b2a; box-shadow:4px 4px 0 #b59a5b,0 0 0 2px #e3c479; }
+body[data-design="design-a"] .special-match-board { border-color:#653f36 !important; background:repeating-linear-gradient(90deg,transparent 0 39px,rgba(250,226,180,.08) 40px 41px),#7b4d3e !important; }
+body[data-design="design-a"] .special-match-board .special-tile { border:1px solid #d2a875; border-radius:1px; background:#fff3dc; color:#653e32; box-shadow:4px 4px 0 #b8895d; }
+body[data-design="design-a"] .special-match-board .special-tile.selected, body[data-design="design-a"] .special-match-board .special-tile.hinted { border-color:#edbc60; background:#ffe29c; color:#513427; box-shadow:4px 4px 0 #a87541,0 0 0 2px #f2ca74; }
 body[data-design="design-a"] .dashboard-header { border-radius:0 !important; background:#76382f !important; }
 @media (max-width:1050px) { body[data-design="design-a"] .app-shell { grid-template-columns:195px minmax(0,1fr); } body[data-design="design-a"] .portal-room-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
 @media (max-width:720px) {
