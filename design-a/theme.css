@@ -1,0 +1,104 @@
+/* A — 经卷书院：朱砂目录、温纸页、卷册式学习界面。 */
+body[data-design="design-a"] { --paper:#f1e7d4; --card:#fffaf0; --ink:#392d25; --ink-soft:#695949; --jade:#873a30; --jade-pale:#f3e5d2; --coral:#a64d32; --gold:#a2773c; --line:#d7c4a8; --radius-lg:2px; background:#f1e7d4; }
+body[data-design="design-a"] .candidate-banner { position:relative; z-index:11; display:flex; justify-content:space-between; gap:10px; padding:8px 22px; background:#6e2e29; color:#fff2d9; font-size:11px; letter-spacing:.06em; }
+body[data-design="design-a"] .candidate-banner span:last-child { display:flex; gap:15px; }
+body[data-design="design-a"] .candidate-banner a { color:#fff2d9; text-underline-offset:3px; }
+body[data-design="design-a"] .app-shell { display:grid; grid-template-columns:220px minmax(0,1fr); }
+body[data-design="design-a"] .sidebar { width:auto; height:calc(100vh - 31px); flex-basis:auto; top:0; padding:25px 15px; border-right:1px solid #cab595; background:linear-gradient(90deg,#e2d2b9,#f7ecd6 17%,#eee0c7); color:#493327; box-shadow:inset -8px 0 18px rgba(110,70,44,.08); }
+body[data-design="design-a"] .sidebar::before { width:5px; height:100%; background:#873a30; }
+body[data-design="design-a"] .brand-lockup { border-bottom:2px solid #9b4234; padding-bottom:20px; margin-bottom:15px; }
+body[data-design="design-a"] .brand-mark { border-radius:2px; background:#8f3a2e; color:#fff1d8; box-shadow:4px 4px 0 #c9b18f; }
+body[data-design="design-a"] .brand-mark i { background:#6b3028; box-shadow:none; }
+body[data-design="design-a"] .brand-name { font-size:22px; letter-spacing:.17em; }
+body[data-design="design-a"] .brand-subtitle, body[data-design="design-a"] .nav-label, body[data-design="design-a"] .nav-label small { color:#826b58; }
+body[data-design="design-a"] .role-switch { margin-bottom:22px; border:1px solid #d4bd9c; border-radius:0; background:#eadbc4; }
+body[data-design="design-a"] .role-button { color:#6d5948; }
+body[data-design="design-a"] .role-button.active { border-radius:0; background:#873a30; color:#fff5e5; }
+body[data-design="design-a"] .primary-nav .nav-item { min-height:64px; border:0; border-bottom:1px solid #d6c2a3; border-radius:0; background:transparent; color:#5d4738; box-shadow:none; }
+body[data-design="design-a"] .primary-nav .nav-item.active { border-bottom-color:#79372e; background:#79372e; color:#fff5e6; box-shadow:4px 4px 0 #c9a574; }
+body[data-design="design-a"] .primary-nav .nav-icon { width:31px; height:31px; border-radius:2px; }
+body[data-design="design-a"] .primary-nav .nav-pill { background:rgba(114,52,42,.1); color:#824737; }
+body[data-design="design-a"] .primary-nav .nav-item.active .nav-pill { background:rgba(255,255,255,.13); color:#fff2da; }
+body[data-design="design-a"] .secondary-nav .nav-item, body[data-design="design-a"] .meridian-button { color:#675442; border-radius:0; }
+body[data-design="design-a"] .secondary-nav .nav-item.active, body[data-design="design-a"] .meridian-button.active { background:#e7d3b5; color:#872f27; box-shadow:inset 3px 0 #9b4234; }
+body[data-design="design-a"] .sidebar-footer { border-top-color:#cbb99d; }
+body[data-design="design-a"] .version-chip { border-radius:2px; background:#e8d7bb; color:#734b3b; }
+body[data-design="design-a"] .footer-copy { color:#8a7560; }
+body[data-design="design-a"] .candidate-links { display:flex; gap:11px; margin-bottom:12px; font-size:11px; }
+body[data-design="design-a"] .candidate-links a { color:#873a30; }
+body[data-design="design-a"] .main-content { background:repeating-linear-gradient(0deg,transparent 0 35px,rgba(151,109,65,.035) 36px 37px),#f1e7d4; }
+body[data-design="design-a"] .topbar { height:55px; padding-inline:clamp(22px,4vw,62px); border-bottom:1px solid #c7ac86; background:#f9f0df; }
+body[data-design="design-a"] .breadcrumb > span:first-child { color:#873a30; }
+body[data-design="design-a"] .view-root { max-width:1370px; padding:clamp(22px,3vw,44px) clamp(20px,4vw,62px) 100px; }
+body[data-design="design-a"] .eyebrow { color:#a24932; }
+body[data-design="design-a"] .ghost-button, body[data-design="design-a"] .primary-button, body[data-design="design-a"] .select-control { border-radius:2px; }
+body[data-design="design-a"] .primary-button { background:#8b392d; color:#fff9e9; box-shadow:4px 4px 0 #d8b38c; }
+body[data-design="design-a"] .primary-button:hover { background:#a44635; box-shadow:5px 5px 0 #d8b38c; }
+body[data-design="design-a"] .ghost-button { border-color:#cdb28a; background:#f7edda; color:#783f32; }
+body[data-design="design-a"] .select-control { border-color:#cfb797; background-color:#fffaf0; color:#4b382d; }
+body[data-design="design-a"] .question-card, body[data-design="design-a"] .side-card, body[data-design="design-a"] .dashboard-card { border-radius:2px; border-color:#d2bfa3; background:#fffcf3; box-shadow:7px 7px 0 rgba(112,70,44,.08); }
+body[data-design="design-a"] .portal-page { display:grid; gap:26px; }
+body[data-design="design-a"] .portal-hero { min-height:360px; border-radius:0; border-top:6px solid #8c392d; background:linear-gradient(90deg,rgba(255,251,240,.94),rgba(255,251,240,.81)),repeating-linear-gradient(90deg,#e3d4b7 0 1px,transparent 1px 48px); color:#392b23; box-shadow:9px 9px 0 #d5c1a2; }
+body[data-design="design-a"] .portal-hero::before { inset:18px; border:1px solid #cdb491; border-radius:0; }
+body[data-design="design-a"] .portal-hero h1 { color:#4f2b25; font-size:clamp(38px,4.3vw,66px); letter-spacing:.11em; }
+body[data-design="design-a"] .portal-hero p { color:#69574a; }
+body[data-design="design-a"] .portal-hero .eyebrow { color:#a24932; }
+body[data-design="design-a"] .portal-hero-figure { min-height:260px; border-left:1px solid #d8bea0; }
+body[data-design="design-a"] .portal-meridian-disc { filter:sepia(.5); }
+body[data-design="design-a"] .daily-study { border-radius:0; border:1px solid #c4a984; border-left:7px solid #983b31; background:#fff9ec; box-shadow:9px 9px 0 #e0ceb2; }
+body[data-design="design-a"] .daily-study::before { border-color:rgba(158,66,48,.18); box-shadow:0 0 0 35px rgba(158,66,48,.035),0 0 0 70px rgba(158,66,48,.025); }
+body[data-design="design-a"] .daily-study-heading h2, body[data-design="design-a"] .daily-study-points strong { color:#6e342a; }
+body[data-design="design-a"] .daily-study-points li { border-radius:0; border-bottom:3px solid #cba77a; background:#faf0dc; }
+body[data-design="design-a"] .daily-study-counter { border-color:#9e6b58; color:#84392f; }
+body[data-design="design-a"] .portal-study-desk { grid-template-columns:1fr 1fr; border-radius:0; background:#fffaf0; box-shadow:8px 8px 0 #d8c3a2; }
+body[data-design="design-a"] .portal-desk-intro { grid-column:1 / -1; padding-block:18px; border-bottom:1px solid #d3b995; background:#7d392e; }
+body[data-design="design-a"] .portal-desk-intro h2, body[data-design="design-a"] .portal-desk-intro p, body[data-design="design-a"] .portal-desk-intro .eyebrow { color:#fff2d8; }
+body[data-design="design-a"] .portal-desk-review { background:#f2e4ca; }
+body[data-design="design-a"] .portal-desk-review button { border-radius:2px; background:#82382f; }
+body[data-design="design-a"] .portal-section-heading { padding-bottom:17px; border-bottom:2px solid #944234; }
+body[data-design="design-a"] .portal-section h2 { color:#5c3028; }
+body[data-design="design-a"] .portal-room-grid { grid-template-columns:1.5fr 1fr 1fr; gap:9px; }
+body[data-design="design-a"] .portal-room { min-height:280px; border-radius:0; border:1px solid #d1b994; border-top:5px solid #8a3b30; background:#fffaf0; box-shadow:6px 6px 0 #e0cdae; }
+body[data-design="design-a"] .portal-room-link { border-top-color:#3f6970; background:#edf3ee; }
+body[data-design="design-a"] .portal-room-match { border-top-color:#bd754d; background:#f8e9d7; }
+body[data-design="design-a"] .portal-room::before { width:115px; height:115px; right:-35px; top:-30px; border-radius:0; transform:rotate(35deg); }
+body[data-design="design-a"] .portal-room strong { font-size:clamp(25px,2.3vw,34px); }
+body[data-design="design-a"] .portal-path, body[data-design="design-a"] .portal-access { border-radius:0; border-color:#d3bd9d; background:#fffaf0; }
+body[data-design="design-a"] .welcome-row { border-radius:0 !important; border-top:5px solid #914032 !important; background:#f8eedb !important; box-shadow:8px 8px 0 #ddc9aa !important; }
+body[data-design="design-a"] .welcome-row h1 { color:#6e342a !important; }
+body[data-design="design-a"] .question-card { padding:clamp(18px,3vw,38px) !important; }
+body[data-design="design-a"] .image-stage { border:13px solid #e7d8bb !important; border-radius:1px !important; outline-color:#ae8c65 !important; }
+body[data-design="design-a"] .option-button { border-radius:1px !important; border-color:#d4bea0 !important; background:#fff9ec !important; }
+body[data-design="design-a"] .option-button.correct { background:#ebf2dc !important; }
+body[data-design="design-a"] .option-button.wrong { background:#fbe9df !important; }
+body[data-design="design-a"] .special-hero { border-radius:0 !important; box-shadow:8px 8px 0 rgba(40,54,49,.25) !important; }
+body[data-design="design-a"][data-view="points"] .special-hero { border:1px solid #87a6a2 !important; background:linear-gradient(110deg,#173c44,#365d64) !important; }
+body[data-design="design-a"][data-view="match"] .special-hero { border:1px solid #d4a174 !important; background:linear-gradient(110deg,#743c32,#a46143) !important; }
+body[data-design="design-a"] .special-rules, body[data-design="design-a"] .special-controls, body[data-design="design-a"] .special-link-board, body[data-design="design-a"] .special-match-board { border-radius:0 !important; }
+body[data-design="design-a"] .dashboard-header { border-radius:0 !important; background:#76382f !important; }
+@media (max-width:1050px) { body[data-design="design-a"] .app-shell { grid-template-columns:195px minmax(0,1fr); } body[data-design="design-a"] .portal-room-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media (max-width:720px) {
+  body[data-design="design-a"] .candidate-banner { font-size:10px; }
+  body[data-design="design-a"] .app-shell { display:block; }
+  body[data-design="design-a"] .sidebar { width:100%; height:auto; position:static; padding:10px 14px 11px; border-right:0; border-bottom:3px solid #8b3e31; }
+  body[data-design="design-a"] .brand-lockup { padding-bottom:8px; margin-bottom:7px; border-bottom:0; }
+  body[data-design="design-a"] .role-switch { margin-bottom:6px; }
+  body[data-design="design-a"] .primary-nav { position:fixed; z-index:50; left:10px; right:10px; bottom:calc(8px + env(safe-area-inset-bottom)); grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; padding:5px; border:1px solid #a86c52; background:#f1e1c6; box-shadow:0 8px 26px rgba(61,35,26,.25); }
+  body[data-design="design-a"] .primary-nav .nav-item { min-height:54px; padding:5px; border:0; display:grid; justify-items:center; gap:2px; text-align:center; }
+  body[data-design="design-a"] .primary-nav .nav-icon { width:20px; height:20px; font-size:11px; }
+  body[data-design="design-a"] .primary-nav .nav-item > span:nth-child(2) { font-size:11px; }
+  body[data-design="design-a"] .secondary-nav { margin-top:5px; }
+  body[data-design="design-a"] .secondary-nav .nav-item { min-height:34px; border:1px solid #d3bea0; }
+  body[data-design="design-a"] .nav-label, body[data-design="design-a"] .meridian-list, body[data-design="design-a"] .sidebar-footer { display:none; }
+  body[data-design="design-a"] .topbar { height:40px; }
+  body[data-design="design-a"] .view-root { padding:17px 14px calc(95px + env(safe-area-inset-bottom)); }
+  body[data-design="design-a"] .portal-page { gap:18px; }
+  body[data-design="design-a"] .portal-hero { min-height:0; padding:29px 23px; box-shadow:5px 5px 0 #d5c1a2; }
+  body[data-design="design-a"] .portal-hero h1 { font-size:37px; }
+  body[data-design="design-a"] .portal-study-desk { display:block; }
+  body[data-design="design-a"] .portal-room-grid { grid-template-columns:1fr; }
+  body[data-design="design-a"] .portal-room { min-height:170px; padding:21px; }
+  body[data-design="design-a"] .daily-study { padding:20px 16px; }
+  body[data-design="design-a"] .welcome-row { padding:21px 19px !important; }
+}
+@media (prefers-reduced-motion:reduce) { body[data-design="design-a"] *, body[data-design="design-a"] *::before, body[data-design="design-a"] *::after { animation-duration:.01ms !important; transition-duration:.01ms !important; } }
