@@ -27,7 +27,15 @@ function specialMedicalMistake(point, label) {
     const id = point.id, now = Date.now();
     old[id] = { pointId: id, label, errors: (old[id]?.errors || 0) + 1, streak: 0, dueAt: now + 10 * 60 * 1000, lastAt: new Date(now).toISOString() };
     localStorage.setItem(key, JSON.stringify(old));
-  } catch (_) { /* local storage is optional */ }
+    if (typeof refreshReviewBadge === 'function') refreshReviewBadge();
+    return old[id].errors;
+  } catch (_) { return null; /* local storage is optional */ }
+}
+function specialMedicalErrorCount(id) {
+  try {
+    const saved = JSON.parse(localStorage.getItem('xuejian-special-mistakes-v1') || '{}');
+    return Number.isInteger(saved[id]?.errors) ? saved[id].errors : 0;
+  } catch (_) { return null; }
 }
 function specialMedicalSuccess(point, label) {
   try {
@@ -36,6 +44,7 @@ function specialMedicalSuccess(point, label) {
     const streak = Math.min(6, (item.streak || 0) + 1), days = [1, 3, 7, 14, 30, 60][streak - 1];
     old[point.id] = { ...item, label, streak, dueAt: Date.now() + Math.max(60 * 60 * 1000, days * 86400000 / (1 + item.errors * 0.5)) };
     localStorage.setItem(key, JSON.stringify(old));
+    if (typeof refreshReviewBadge === 'function') refreshReviewBadge();
   } catch (_) { /* local storage is optional */ }
 }
 function specialPriorityIds() {
@@ -57,7 +66,12 @@ function specialTimer(session, redraw) {
   session.timer = setInterval(() => {
     if (specialSession !== session || session.done || session.locked || document.hidden || state.view !== session.view) return;
     session.remaining -= 1;
-    if (session.remaining <= 0) { session.remaining = 0; session.done = true; specialSaved({ game: session.view, chapter: session.chapter || session.target, score: Math.max(0, session.score), completed: false }); }
+    if (session.remaining <= 0) {
+      session.remaining = 0; session.done = true;
+      specialSaved(session.view === 'points'
+        ? { game: 'link', chapter: `${session.chapter}:${session.value}`, score: Math.max(0, session.score), completed: false, wrongIds: [...session.mistakes] }
+        : { game: 'match', chapter: session.target, score: Math.max(0, session.score), completed: false, seenIds: [...session.seen.keys()] });
+    }
     redraw();
   }, 1000);
 }
@@ -71,14 +85,26 @@ function specialHud(session, label, current, total, details) {
 }
 function specialResults(session, points, description) {
   const unique = [...new Map(points.map((p) => [p.id, p])).values()];
-  return `<section class="game-result"><h3>${session.remaining === 0 && session.mode === 'challenge' ? '时间到' : '本局完成'}</h3><p>${escapeHtml(description)}</p>${session.mode === 'challenge' ? `<p>挑战得分：${Math.max(0, session.score + (session.done && session.remaining > 0 ? session.remaining : 0))}</p>` : ''}<div class="game-answer-list">${unique.map((p) => `<details><summary>${escapeHtml(p.name)} · ${escapeHtml(specialCore.identity(p))}</summary><p>${escapeHtml(p.explanation || '')}</p></details>`).join('')}</div><button type="button" class="primary-button" id="special-again">换一局继续</button></section>`;
+  if (session.view === 'points') unique.sort((a, b) => Number(session.mistakes.has(b.id)) - Number(session.mistakes.has(a.id)));
+  const renderAnswer = (p) => {
+    const count = session.view === 'points' ? specialMedicalErrorCount(p.id) : null;
+    const wrong = session.view === 'points' && session.mistakes.has(p.id);
+    return `<details><summary>${escapeHtml(p.name)} · ${escapeHtml(specialCore.identity(p))}${wrong ? ' · 本局错配' : ''}${count ? ` · 累计错配 ${count} 次` : ''}</summary><p>${escapeHtml(p.explanation || '')}</p></details>`;
+  };
+  const cleared = session.view === 'match' && session.seen && typeof session.seen.has === 'function' ? unique.filter((p) => session.seen.has(p.id)) : unique;
+  const others = session.view === 'match' ? unique.filter((p) => !cleared.includes(p)) : [];
+  const answerList = session.view === 'match'
+    ? `<p>本局消除穴位 ${cleared.length} 个，先看这些穴位的解析。</p><div class="game-answer-list">${cleared.map(renderAnswer).join('')}</div>${others.length ? `<details class="game-result-extra"><summary>查看棋盘其余 ${others.length} 穴及解析</summary><div class="game-answer-list">${others.map(renderAnswer).join('')}</div></details>` : ''}`
+    : `<div class="game-answer-list">${unique.map(renderAnswer).join('')}</div>`;
+  return `<section class="game-result"><h3>${session.remaining === 0 && session.mode === 'challenge' ? '时间到' : '本局完成'}</h3><p>${escapeHtml(description)}</p>${session.view === 'points' && session.mistakes.size ? `<p>本局错配 ${session.mistakes.size} 穴，已排在解析列表前面。</p>` : ''}${session.mode === 'challenge' ? `<p>挑战得分：${Math.max(0, session.score + (session.done && session.remaining > 0 ? session.remaining : 0))}</p>` : ''}${answerList}<button type="button" class="primary-button" id="special-again">换一局继续</button></section>`;
 }
 function specialInlineExplanation(points) {
   if (!points || !points.length) return '';
   const unique = [...new Map(points.map((point) => [point.id, point])).values()];
   return `<div class="game-answer-list">${unique.map((point) => `<details><summary>${escapeHtml(point.name)} · ${escapeHtml(specialCore.identity(point))} · 查看解析</summary><p>${escapeHtml(point.explanation || '')}</p></details>`).join('')}</div>`;
 }
-function renderSpecialMatchGame(target = '五输穴', mode = 'learn', tutorial = false) {
+function renderSpecialMatchGame(target = '五输穴', mode = 'learn', tutorial = null) {
+  if (tutorial === null) { try { tutorial = !localStorage.getItem('xuejian-match-tutorial-done-v1'); } catch (_) { tutorial = false; } }
   if (tutorial) { target = '井'; mode = 'learn'; }
   specialStop();
   state.view = 'match';
@@ -93,12 +119,13 @@ function renderSpecialMatchGame(target = '五输穴', mode = 'learn', tutorial =
     const example = state.data.points.find((p) => specialCore.hasCategory(p, target));
     root.innerHTML = `<div class="feature-hero special-hero"><div class="hero-copy"><div class="eyebrow">第三研习室 · 特定穴棋局</div><h2>特定穴消消乐</h2><p>交换相邻穴名，横向或纵向凑出三个不同的目标类穴位即可消除。完成 6 次有效消除。</p></div><div class="game-hero-art match-art" aria-hidden="true"><span>井</span><span>荥</span><span>输</span><span>经</span><span>合</span></div></div>
       <details class="special-rules"${session.rulesOpen ? ' open' : ''}><summary>怎么玩？先看这 4 步</summary><ol><li>选一个目标类别，例如“井穴”。棋子上只写穴名，需要你判断类别。</li><li>依次点击相邻的两格，让它们交换位置。</li><li>横排或竖排凑齐 3 个不同的本类穴位就会消除；其他类别不算。</li><li>正式关消除 6 次通关。学习不限时，挑战限 180 秒；不确定时点“提示”。</li></ol></details>
-      <div class="explorer-toolbar game-toolbar special-controls"><label>目标类别<select id="special-target" class="select-control">${specialCore.TARGETS.map((name) => `<option value="${name}"${name === target ? ' selected' : ''}>${name === '络穴' || name === '郄穴' ? `十二经${name}` : name}</option>`).join('')}</select></label>${specialModes(session)}<button type="button" class="ghost-button" id="special-tutorial">${tutorial ? '退出新手关' : '先玩新手关'}</button><button type="button" class="ghost-button" id="special-hint">提示 ${mode === 'challenge' ? `${3 - session.hints}/3` : ''}</button><button type="button" class="ghost-button" id="special-reset">重新开局</button></div>
+      <div class="special-onboarding"><div><strong>${tutorial ? "正在体验新手关" : "先玩新手关，再开始正式练习"}</strong><span>跟着高亮棋子完成操作，约一分钟即可学会。</span></div><button type="button" class="primary-button" id="special-tutorial">${tutorial ? "退出新手关" : "进入新手关"}</button></div>
+      <div class="explorer-toolbar game-toolbar special-controls"><label>目标类别<select id="special-target" class="select-control">${specialCore.TARGETS.map((name) => `<option value="${name}"${name === target ? ' selected' : ''}>${name === '络穴' || name === '郄穴' ? `十二经${name}` : name}</option>`).join('')}</select></label>${specialModes(session)}<button type="button" class="ghost-button" id="special-hint">提示 ${mode === 'challenge' ? `${3 - session.hints}/3` : ''}</button><button type="button" class="ghost-button" id="special-reset">重新开局</button></div>
       <p class="special-instruction">${escapeHtml(specialDescriptions[target])} 示例：${escapeHtml(example.name)}（${escapeHtml(specialCore.identity(example))}）。</p>
       ${specialHud(session, tutorial ? '新手关' : '有效消除', session.moves, tutorial ? 1 : 6, `无效交换 ${session.invalid} · 已见 ${session.exposed.size} 穴`)}
       <div class="special-board-wrap"><div class="special-match-board" aria-label="特定穴三消棋盘">${session.board.map((p, index) => `<button type="button" class="special-tile${index === session.selected ? ' selected' : ''}${session.hint.includes(index) ? ' hinted' : ''}${session.fx?.cells?.includes(index) ? ` ${session.fx.kind === 'clearing' ? 'clearing' : session.fx.kind === 'invalid' ? 'invalid' : 'entering'}` : ''}" data-index="${index}" aria-label="${escapeHtml(p.name)}">${escapeHtml(p.name)}</button>`).join('')}</div>${specialFeedback(session)}</div>
       <p class="game-message" aria-live="polite">${escapeHtml(session.message)}</p>
-      ${specialInlineExplanation(session.lastExplained)}
+      ${session.done ? '' : specialInlineExplanation(session.lastExplained)}
       ${session.done ? specialResults(session, [...session.exposed.values()], `有效消除 ${session.moves} 次，无效交换 ${session.invalid} 次，接触 ${session.exposed.size} 穴，提示 ${session.hints} 次。`) : ''}`;
     root.querySelector('.special-rules').ontoggle = (e) => { session.rulesOpen = e.target.open; };
     root.querySelector('#special-target').onchange = (e) => renderSpecialMatchGame(e.target.value, mode);
@@ -147,7 +174,7 @@ function renderSpecialMatchGame(target = '五输穴', mode = 'learn', tutorial =
         result.cleared.forEach((p) => specialMedicalSuccess(p, target));
         session.lastExplained = result.cleared;
         session.message = `消除成功：${result.cleared.slice(0, 4).map((p) => `${p.name}（${specialCore.identity(p)}）`).join('、')}${result.cascadeRounds ? `；连击 ${result.cascadeRounds} 轮` : ''}`;
-        if (session.moves >= (tutorial ? 1 : 6)) { session.done = true; session.message = tutorial ? '新手关完成！你已学会交换相邻穴名并凑齐三个井穴。' : session.message; if (!tutorial) specialSaved({ game: 'match', chapter: target, score: Math.max(0, session.score + (session.remaining || 0)), completed: true, seenIds: [...session.seen.keys()] }); }
+        if (session.moves >= (tutorial ? 1 : 6)) { session.done = true; if (tutorial) { try { localStorage.setItem("xuejian-match-tutorial-done-v1", "1"); } catch (_) {} } session.message = tutorial ? '新手关完成！你已学会交换相邻穴名并凑齐三个井穴。' : session.message; if (!tutorial) specialSaved({ game: 'match', chapter: target, score: Math.max(0, session.score + (session.remaining || 0)), completed: true, seenIds: [...session.seen.keys()] }); }
         session.fx = { kind: 'settling', title: session.done ? '闯关成功！' : result.cascadeGroups ? '连击加分！' : '漂亮！', detail: session.done ? '完成本关' : `${session.moves}/${tutorial ? 1 : 6} 次有效消除`, cells, until: Date.now() + 1000 };
         paint();
       }, specialMotionDelay());
@@ -156,7 +183,8 @@ function renderSpecialMatchGame(target = '五输穴', mode = 'learn', tutorial =
   }
   specialTimer(session, paint); paint();
 }
-function renderSpecialLinkGame(chapter = 'meridian', value = null, mode = 'learn', tutorial = false) {
+function renderSpecialLinkGame(chapter = 'meridian', value = null, mode = 'learn', tutorial = null) {
+  if (tutorial === null) { try { tutorial = !localStorage.getItem('xuejian-link-tutorial-done-v1'); } catch (_) { tutorial = false; } }
   if (tutorial) { chapter = 'meridian'; value = state.data.meridians[0]; mode = 'learn'; }
   specialStop();
   state.view = 'points';
@@ -172,12 +200,13 @@ function renderSpecialLinkGame(chapter = 'meridian', value = null, mode = 'learn
     const values = chapter === 'meridian' ? state.data.meridians : specialCore.TARGETS.slice(1);
     root.innerHTML = `<div class="feature-hero special-hero"><div class="hero-copy"><div class="eyebrow">第二研习室 · 经络寻踪</div><h2>特定穴连连看</h2><p>穴名连接其特定穴身份。连线不得穿过棋子，最多转两次弯；可从棋盘外侧绕行。</p></div><div class="game-hero-art link-art" aria-hidden="true"><span>经</span><span>络</span><span>穴</span><span>脉</span></div></div>
       <details class="special-rules"${session.rulesOpen ? ' open' : ''}><summary>怎么玩？先看这 4 步</summary><ol><li>先点一块穴名，再点它的正确身份，例如“少商”连“井穴”。</li><li>两块之间的线不能穿过其他棋子，最多拐两次弯；棋盘外缘也能绕。</li><li>身份选错会给解析；身份正确但路线被挡，请先消除别的配对。</li><li>消完所有配对通关。单经脉有 7 或 8 对，跨经同类有 6 对。</li></ol></details>
-      <div class="explorer-toolbar game-toolbar special-controls"><label>关卡<select id="link-chapter" class="select-control"><option value="meridian"${chapter === 'meridian' ? ' selected' : ''}>单经脉</option><option value="category"${chapter === 'category' ? ' selected' : ''}>跨经脉同类</option></select></label><label>范围<select id="link-value" class="select-control">${values.map((item) => `<option value="${escapeHtml(item)}"${item === value ? ' selected' : ''}>${escapeHtml(item === '络穴' || item === '郄穴' ? `十二经${item}` : item)}</option>`).join('')}</select></label>${specialModes(session)}<button type="button" class="ghost-button" id="special-tutorial">${tutorial ? '退出新手关' : '先玩新手关'}</button><button type="button" class="ghost-button" id="special-hint">提示 ${mode === 'challenge' ? `${3 - session.hints}/3` : ''}</button><button type="button" class="ghost-button" id="special-reset">重新开局</button></div>
+      <div class="special-onboarding"><div><strong>${tutorial ? "正在体验新手关" : "先玩新手关，再开始正式练习"}</strong><span>跟着高亮棋子完成操作，约一分钟即可学会。</span></div><button type="button" class="primary-button" id="special-tutorial">${tutorial ? "退出新手关" : "进入新手关"}</button></div>
+      <div class="explorer-toolbar game-toolbar special-controls"><label>关卡<select id="link-chapter" class="select-control"><option value="meridian"${chapter === 'meridian' ? ' selected' : ''}>单经脉</option><option value="category"${chapter === 'category' ? ' selected' : ''}>跨经脉同类</option></select></label><label>范围<select id="link-value" class="select-control">${values.map((item) => `<option value="${escapeHtml(item)}"${item === value ? ' selected' : ''}>${escapeHtml(item === '络穴' || item === '郄穴' ? `十二经${item}` : item)}</option>`).join('')}</select></label>${specialModes(session)}<button type="button" class="ghost-button" id="special-hint">提示 ${mode === 'challenge' ? `${3 - session.hints}/3` : ''}</button><button type="button" class="ghost-button" id="special-reset">重新开局</button></div>
       <p class="special-instruction">${chapter === 'meridian' ? '本经的井、荥、输、经、合、原、络、郄；阴经输穴兼原穴为同一对。' : `跨经脉辨认${value}穴，每条经脉只出现一个正确身份。`}</p>
       ${specialHud(session, '已连接', session.matched, pairs.length, `医学错配 ${session.wrong} · 路线受阻 ${session.blocked}`)}
       <div class="special-link-wrap"><div class="special-link-board" aria-label="特定穴路径连连看">${session.board.map((tile, index) => `<button type="button" class="special-tile${!tile ? ' empty' : ''}${index === session.selected ? ' selected' : ''}${session.hint.includes(index) ? ' hinted' : ''}${session.fx?.cells?.includes(index) ? ` ${session.fx.kind === 'linking' ? 'connecting' : 'invalid'}` : ''}" data-index="${index}" ${!tile ? 'disabled' : ''}>${tile ? escapeHtml(tile.label) : ''}</button>`).join('')}</div><svg class="special-link-line" aria-hidden="true"></svg>${specialFeedback(session)}</div>
       <p class="game-message" aria-live="polite">${escapeHtml(session.message)}</p>
-      ${specialInlineExplanation(session.lastExplained)}
+      ${session.done ? '' : specialInlineExplanation(session.lastExplained)}
       ${session.done ? specialResults(session, pairs.map((pair) => pair.point), `连接 ${session.matched} 对，医学错配 ${session.wrong} 次，路线受阻 ${session.blocked} 次，提示 ${session.hints} 次。`) : ''}`;
     root.querySelector('.special-rules').ontoggle = (e) => { session.rulesOpen = e.target.open; };
     root.querySelector('#link-chapter').onchange = (e) => renderSpecialLinkGame(e.target.value, null, mode);
@@ -204,8 +233,8 @@ function renderSpecialLinkGame(chapter = 'meridian', value = null, mode = 'learn
         const point = pairs.find((pair) => pair.id === nameTile.id).point;
         session.lastExplained = [point];
         session.wrong += 1; session.mistakes.add(point.id); if (mode === 'challenge') session.score -= 20;
-        specialMedicalMistake(point, pairs.find((pair) => pair.id === point.id).label);
-        session.message = `${point.name}的正确身份是${pairs.find((pair) => pair.id === point.id).label}；请重新连接。`;
+        const errors = specialMedicalMistake(point, pairs.find((pair) => pair.id === point.id).label);
+        session.message = `${point.name}的正确身份是${pairs.find((pair) => pair.id === point.id).label}；请重新连接。${errors ? `本穴累计错配 ${errors} 次。` : ''}`;
         session.fx = { kind: 'invalid', title: '身份不符', detail: `正确身份：${pairs.find((pair) => pair.id === point.id).label}`, cells: [nameIndex, index], until: Date.now() + 850 };
       } else {
         const path = specialCore.pathBetween(session.board, nameIndex, index);
@@ -223,7 +252,7 @@ function renderSpecialLinkGame(chapter = 'meridian', value = null, mode = 'learn
             session.lastExplained = [point];
             specialMedicalSuccess(point, pairs.find((pair) => pair.id === tile.id).label);
             session.message = `连接正确：${point.name}（${specialCore.identity(point)}）。`;
-            if (session.matched === pairs.length) { session.done = true; if (tutorial) session.message = '新手关完成！你已学会穴名连身份，以及最多两次转弯的路径规则。'; else specialSaved({ game: 'link', chapter: `${chapter}:${value}`, score: Math.max(0, session.score + (session.remaining || 0)), completed: true, wrongIds: [...session.mistakes] }); }
+            if (session.matched === pairs.length) { session.done = true; if (tutorial) { session.message = '新手关完成！你已学会穴名连身份，以及最多两次转弯的路径规则。'; try { localStorage.setItem("xuejian-link-tutorial-done-v1", "1"); } catch (_) {} } else specialSaved({ game: 'link', chapter: `${chapter}:${value}`, score: Math.max(0, session.score + (session.remaining || 0)), completed: true, wrongIds: [...session.mistakes] }); }
             else if (!specialCore.legalLinks(session.board).length) { session.board = specialCore.reshuffleLinkBoard(session.board); session.message += ' 剩余棋子无路可连，已自动重排。'; }
             if (tutorial && !session.done) { const next = specialCore.legalLinks(session.board)[0]; session.hint = [next.a, next.b]; }
             session.fx = { kind: 'settling', title: session.done ? '闯关成功！' : '配对完成！', detail: session.done ? '完成本关' : `${session.matched}/${pairs.length} 对已连接${mode === 'challenge' ? ' · +100 分' : ''}`, cells: [], until: Date.now() + 950 };

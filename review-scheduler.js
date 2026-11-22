@@ -19,6 +19,8 @@
     value.seenIds = Array.isArray(value.seenIds) ? value.seenIds : [];
     value.review = value.review && typeof value.review === 'object' ? value.review : {};
     for (const id of value.wrongIds) if (!value.review[id]) value.review[id] = { errors: 1, streak: 0, lastAnsweredAt: 0, dueAt: 0 };
+    // Restore historical mistakes removed by older versions after a correct answer.
+    value.wrongIds = [...new Set([...value.wrongIds, ...Object.keys(value.review).filter((id) => Number(value.review[id]?.errors) > 0)])];
     return value;
   }
   function record(progress, id, correct, now = Date.now()) {
@@ -31,8 +33,7 @@
     data.total += 1;
     if (correct) data.correct += 1;
     if (!data.seenIds.includes(id)) data.seenIds.push(id);
-    if (correct) data.wrongIds = data.wrongIds.filter((item) => item !== id);
-    else if (!data.wrongIds.includes(id)) data.wrongIds.push(id);
+    if (!correct && !data.wrongIds.includes(id)) data.wrongIds.push(id);
     return data;
   }
   function due(record, now = Date.now()) { return Boolean(record && Number(record.dueAt) <= now); }
@@ -41,7 +42,7 @@
     if (!item) return 10;
     const errors = Number(item.errors) || 0;
     if (due(item, now)) return 1000 + errors * 100 + Math.min(100, Math.max(0, (now - item.dueAt) / DAY));
-    if (data.wrongIds.includes(point.id)) return 100 + errors * 10;
+    // A historical mistake remains listed, but waits until its due date for extra priority.
     return Math.max(0, 5 - (Number(item.streak) || 0));
   }
   function select(progress, points, count = 10, now = Date.now(), random = Math.random) {
