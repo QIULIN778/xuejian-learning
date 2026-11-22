@@ -13,12 +13,42 @@ const state = {
   stats: loadStats(),
   favorites: loadFavorites(),
   selectedOptionId: null,
+  dailySession: false,
 };
 
 const root = document.querySelector("#view-root");
 const pageContext = document.querySelector("#page-context");
 const imagePreloadCache = new Map();
+const DAILY_PLAN_KEY = "xuejian-daily-plan-v1";
 let apiAvailable = false;
+
+function dailyPlan() {
+  const pool = state.data.points.filter(isImageQuizEligible);
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(DAILY_PLAN_KEY) || "null"); } catch (_) { /* 重新生成当天计划 */ }
+  const plan = window.XuejianStudyPlan.normalize(saved, pool, state.stats);
+  if (JSON.stringify(plan) !== JSON.stringify(saved)) writeLocalStorage(DAILY_PLAN_KEY, JSON.stringify(plan));
+  return plan;
+}
+
+function startDailySession() {
+  const plan = dailyPlan();
+  const remaining = new Set(window.XuejianStudyPlan.remaining(plan));
+  if (!remaining.size) { renderPortal(); return; }
+  if (typeof specialStop === "function") specialStop();
+  state.view = "practice";
+  state.role = "student";
+  document.querySelectorAll(".role-button").forEach((button) => { const active = button.dataset.role === "student"; button.classList.toggle("active", active); button.setAttribute("aria-pressed", active ? "true" : "false"); });
+  state.dailySession = true;
+  state.queue = plan.ids.filter((id) => remaining.has(id)).map((id) => state.data.points.find((point) => point.id === id)).filter(Boolean);
+  state.sessionIndex = 0;
+  state.sessionCorrect = 0;
+  state.sessionRetries = {};
+  document.body.dataset.view = "practice";
+  document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.view === "practice"));
+  window.scrollTo(0, 0);
+  nextQuestion();
+}
 
 function syncToLocalApi(endpoint, payload) {
   if (!apiAvailable) return;
@@ -509,6 +539,7 @@ function makeOptions(answer) {
 }
 
 function startSession() {
+  state.dailySession = false;
   const pool = currentPool();
   state.queue = window.XuejianReviewScheduler.select(state.stats, pool, Math.min(10, pool.length));
   state.sessionIndex = 0;
@@ -540,6 +571,11 @@ function selectAnswer(optionId) {
   state.selectedOptionId = optionId;
   const isCorrect = optionId === state.current.id;
   window.XuejianReviewScheduler.record(state.stats, state.current.id, isCorrect);
+  if (isCorrect && state.dailySession) {
+    const updated = window.XuejianStudyPlan.markCorrect(dailyPlan(), state.current.id);
+    writeLocalStorage(DAILY_PLAN_KEY, JSON.stringify(updated));
+    state.queue = state.queue.filter((item, index) => index <= state.sessionIndex || item.id !== state.current.id);
+  }
   if (isCorrect && state.view === "review") {
     window.XuejianReviewScheduler.resolve(state.stats, state.current.id);
     state.queue = state.queue.filter((item, index) => index <= state.sessionIndex || item.id !== state.current.id);
@@ -609,13 +645,13 @@ function renderPractice() {
   const image = imageMarkup(point, "question-image", true);
   root.innerHTML = `
     <div class="welcome-row">
-      <div><div class="eyebrow">第一研习室 · 图谱识记</div><h1>${isReview ? "把错题练会" : "循图辨穴，识其所在"}</h1><p class="lead">${isReview ? `${reviewCount} 道待纠正 · ${reviewDue} 道到期。按下方规则复习，答对后立即移出错题库。` : state.mode === "learn" ? "先读题干，再结合原图或标准定位作答；答后对照解析与图片用途说明。" : "测试模式：按题干作答，完成后再查看解析与原图说明。"}</p></div>
+      <div><div class="eyebrow">第一研习室 · 图谱识记</div><h1>${isReview ? "把错题练会" : state.dailySession ? "今日研习 · 五穴" : "循图辨穴，识其所在"}</h1><p class="lead">${isReview ? `${reviewCount} 道待纠正 · ${reviewDue} 道到期。按下方规则复习，答对后立即移出错题库。` : state.dailySession ? "约 5 分钟，答对五个穴位即完成今日计划；答错仍会进入错题库。" : state.mode === "learn" ? "先读题干，再结合原图或标准定位作答；答后对照解析与图片用途说明。" : "测试模式：按题干作答，完成后再查看解析与原图说明。"}</p></div>
       <div class="folio-illustration" aria-hidden="true"><span class="folio-track"><i></i><i></i><i></i><i></i><i></i></span><span class="folio-seal">识<br>穴</span></div>
       <div class="session-controls">
-        ${isReview ? '' : `<select class="select-control" id="meridian-select" aria-label="选择经脉">${meridianOptions(true)}</select>`}
+        ${isReview || state.dailySession ? '' : `<select class="select-control" id="meridian-select" aria-label="选择经脉">${meridianOptions(true)}</select>`}
         <div class="practice-mode-switch" role="group" aria-label="答题模式"><span>答题模式</span><button type="button" data-practice-mode="learn" class="${state.mode === "learn" ? "active" : ""}" aria-pressed="${state.mode === "learn"}">学习模式<small>答后看解析</small></button><button type="button" data-practice-mode="test" class="${state.mode === "test" ? "active" : ""}" aria-pressed="${state.mode === "test"}">测试模式<small>先独立作答</small></button></div>
         ${isReview ? '<button class="ghost-button" id="leave-review" type="button">返回识图学习</button>' : ""}
-        <button class="ghost-button" id="restart-session">换一组题（记录保留）</button>
+        <button class="ghost-button" id="restart-session">${state.dailySession ? '退出今日计划，换一组题' : '换一组题（记录保留）'}</button>
       </div>
     </div>
     ${isReview ? renderImageReview() : ''}
@@ -727,10 +763,13 @@ function bindPracticeEvents() {
 function renderSessionComplete() {
   pageContext.textContent = state.view === "review" ? "错题复习" : "识图学习";
   const accuracy = state.queue.length ? Math.round((state.sessionCorrect / state.queue.length) * 100) : 0;
+  const today = state.dailySession ? dailyPlan() : null;
+  const dailyRemaining = today ? window.XuejianStudyPlan.remaining(today).length : 0;
   const nextView = state.view === "review" ? "practice" : state.stats.wrongIds.length ? "review" : "points";
   const nextLabel = state.view === "review" ? "继续识图学习" : state.stats.wrongIds.length ? "去纠正错题" : "试试经穴连线";
-  root.innerHTML = `<div class="empty-state"><div class="empty-icon">✦</div><h3>这一组完成了</h3><p>本组答对 ${state.sessionCorrect} / ${state.queue.length} 题，正确率 ${accuracy}%。${state.view === "review" ? "在错题库答对的穴位已移除；仍答错的穴位继续留在库中。" : "答错的穴位进入错题库；在错题复习中答对后移除。"}</p><div class="session-complete-actions"><button class="primary-button" id="restart-session">再来一组</button><button class="ghost-button" id="session-next-step" type="button">${nextLabel}</button></div></div>${state.view === "review" ? renderImageReview() + renderSpecialReview() : ''}`;
+  root.innerHTML = `<div class="empty-state"><div class="empty-icon">✦</div><h3>${today ? dailyRemaining ? '今日计划还差几穴' : '今日五穴已完成' : '这一组完成了'}</h3><p>本组答对 ${state.sessionCorrect} / ${state.queue.length} 题，正确率 ${accuracy}%。${today ? dailyRemaining ? `还有 ${dailyRemaining} 穴尚未答对，随时可以继续。` : '今天已答对计划中的五穴，明天会根据学习记录生成新计划。' : state.view === "review" ? "在错题库答对的穴位已移除；仍答错的穴位继续留在库中。" : "答错的穴位进入错题库；在错题复习中答对后移除。"}</p><div class="session-complete-actions"><button class="primary-button" id="restart-session">再来一组</button>${today && dailyRemaining ? '<button class="ghost-button" id="daily-continue" type="button">继续今日计划</button>' : ''}<button class="ghost-button" id="session-next-step" type="button">${nextLabel}</button></div></div>${state.view === "review" ? renderImageReview() + renderSpecialReview() : ''}`;
   document.querySelector("#restart-session").addEventListener("click", startSession);
+  document.querySelector("#daily-continue")?.addEventListener("click", startDailySession);
   document.querySelector("#session-next-step").addEventListener("click", () => setView(nextView));
   if (state.view === "review") bindSpecialReview();
 }
@@ -961,6 +1000,9 @@ function exportLocalProgress() {
 
 function renderPortal() {
   pageContext.textContent = "平台导览";
+  const today = dailyPlan();
+  const todayRemaining = window.XuejianStudyPlan.remaining(today);
+  const todayPoints = today.ids.map((id) => state.data.points.find((point) => point.id === id)).filter(Boolean);
   const imagePoints = state.data.points.filter(isImageQuizEligible);
   const imageCount = imagePoints.length;
   const seenIds = new Set(Array.isArray(state.stats.seenIds) ? state.stats.seenIds : []);
@@ -982,6 +1024,11 @@ function renderPortal() {
         </div>
         <div class="portal-hero-figure" aria-hidden="true"><div class="portal-meridian-disc"><span>经</span><span>络</span><small>十二经 · 穴位研习</small></div></div>
       </section>
+      <section class="daily-study" aria-labelledby="daily-study-title">
+        <div class="daily-study-heading"><div><div class="eyebrow">每日研习 · 本机计划</div><h2 id="daily-study-title">今日五穴，循序温习</h2><p>从待纠正、到期和未学穴位中选题。答对才点亮；答错立即入错题库。建议约 5 分钟完成。</p></div><div class="daily-study-counter"><strong>${today.completed.length}<small> / ${today.ids.length}</small></strong><span>今日已答对</span></div></div>
+        <ol class="daily-study-points">${todayPoints.map((point, index) => `<li class="${today.completed.includes(point.id) ? 'done' : ''}"><span>${String(index + 1).padStart(2, '0')}</span><strong>${escapeHtml(point.name)}</strong><small>${today.completed.includes(point.id) ? '已完成' : state.stats.wrongIds.includes(point.id) ? '待纠正' : state.stats.seenIds.includes(point.id) ? '再巩固' : '新穴'}</small></li>`).join('')}</ol>
+        <div class="daily-study-footer"><span>计划保存在当前浏览器；换设备不会自动同步。</span><button class="primary-button" id="daily-start" type="button" ${todayRemaining.length ? '' : 'disabled'}>${todayRemaining.length ? '开始今日研习' : '今日已完成'}</button></div>
+      </section>
       <section class="portal-study-desk" aria-labelledby="portal-desk-title">
         <div class="portal-desk-intro"><div class="eyebrow">本机研习书案</div><h2 id="portal-desk-title">从上次学到的地方，接着往前走。</h2><p>记录只保存在当前浏览器；换设备后不会自动同步。</p></div>
         <div class="portal-desk-progress"><div class="portal-desk-measure"><span>已见识图穴位</span><strong>${seenCount}<small> / ${imageCount}</small></strong></div><progress value="${seenCount}" max="${imageCount}" aria-label="已见识图穴位 ${seenCount}，共 ${imageCount}"></progress><span class="portal-desk-footnote">题库覆盖 ${coverage}% · 累计作答 ${state.stats.total} 题 · 正确率 ${accuracy}%</span></div>
@@ -1001,6 +1048,7 @@ function renderPortal() {
       </section>
     </div>`;
   root.querySelectorAll("[data-go-view]").forEach((button) => button.addEventListener("click", () => setView(button.dataset.goView)));
+  root.querySelector("#daily-start")?.addEventListener("click", startDailySession);
 }
 
 function setView(view) {

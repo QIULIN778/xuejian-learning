@@ -96,7 +96,7 @@ function specialResults(session, points, description) {
   const answerList = session.view === 'match'
     ? `<p>本局消除穴位 ${cleared.length} 个，先看这些穴位的解析。</p><div class="game-answer-list">${cleared.map(renderAnswer).join('')}</div>${others.length ? `<details class="game-result-extra"><summary>查看棋盘其余 ${others.length} 穴及解析</summary><div class="game-answer-list">${others.map(renderAnswer).join('')}</div></details>` : ''}`
     : `<div class="game-answer-list">${unique.map(renderAnswer).join('')}</div>`;
-  return `<section class="game-result"><h3>${session.remaining === 0 && session.mode === 'challenge' ? '时间到' : '本局完成'}</h3><p>${escapeHtml(description)}</p>${session.view === 'points' && session.mistakes.size ? `<p>本局错配 ${session.mistakes.size} 穴，已排在解析列表前面。</p>` : ''}${session.mode === 'challenge' ? `<p>挑战得分：${Math.max(0, session.score + (session.done && session.remaining > 0 ? session.remaining : 0))}</p>` : ''}${answerList}<button type="button" class="primary-button" id="special-again">换一局继续</button></section>`;
+  return `<section class="game-result"><h3>${session.remaining === 0 && session.mode === 'challenge' ? '时间到' : '本局完成'}</h3><p>${escapeHtml(description)}</p>${session.view === 'points' && session.mistakes.size ? `<p>本局错配 ${session.mistakes.size} 穴，已排在解析列表前面。</p>` : ''}${session.mode === 'challenge' ? `<p>挑战得分：${Math.max(0, session.score + (session.done && session.remaining > 0 ? session.remaining : 0))}</p>` : ''}${answerList}<div class="game-result-actions"><button type="button" class="primary-button" id="special-again">换一局继续</button><button type="button" class="ghost-button" data-result-view="${session.view === 'points' ? 'match' : 'points'}">${session.view === 'points' ? '试试特定穴棋局' : '试试经穴连线'}</button><button type="button" class="ghost-button" data-result-view="review">查看错题复习</button></div></section>`;
 }
 function specialInlineExplanation(points) {
   if (!points || !points.length) return '';
@@ -179,7 +179,7 @@ function renderSpecialMatchGame(target = '五输穴', mode = 'learn', tutorial =
         paint();
       }, specialMotionDelay());
     });
-    if (session.done) root.querySelector('#special-again').onclick = () => renderSpecialMatchGame(tutorial ? '五输穴' : target, tutorial ? 'learn' : mode);
+    if (session.done) { root.querySelector('#special-again').onclick = () => renderSpecialMatchGame(tutorial ? '五输穴' : target, tutorial ? 'learn' : mode); root.querySelectorAll('[data-result-view]').forEach((button) => button.onclick = () => setView(button.dataset.resultView)); }
   }
   specialTimer(session, paint); paint();
 }
@@ -272,7 +272,7 @@ function renderSpecialLinkGame(chapter = 'meridian', value = null, mode = 'learn
       const points = session.line.map(([y, x]) => `${x0 + (x - 1) * dx},${y0 + (y - 1) * dy}`).join(' ');
       svg.innerHTML = `<polyline class="special-drawn-line" pathLength="100" points="${points}" fill="none" stroke="#3b9f7b" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>`;
     }
-    if (session.done) root.querySelector('#special-again').onclick = () => renderSpecialLinkGame(chapter, value, mode);
+    if (session.done) { root.querySelector('#special-again').onclick = () => renderSpecialLinkGame(chapter, value, mode); root.querySelectorAll('[data-result-view]').forEach((button) => button.onclick = () => setView(button.dataset.resultView)); }
   }
   specialTimer(session, paint); paint();
 }
