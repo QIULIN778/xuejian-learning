@@ -12,9 +12,11 @@ const specialDescriptions = {
   '郄穴': '本题库练习十二经郄穴，不涵盖十六郄穴的全部成员。',
 };
 function specialStop() { if (specialSession?.timer) clearInterval(specialSession.timer); specialSession = null; }
+function specialStorageKey(key) { return window.XuejianCloud?.user ? `${key}-${window.XuejianCloud.user.id}` : key; }
 function specialSaved(result) {
+  if (window.XuejianCloud) { window.XuejianCloud.game(result).catch(() => { const notice = document.querySelector('.game-message'); if (notice) notice.textContent = '成绩未同步，请检查网络。'; }); return; }
   try {
-    const key = 'xuejian-special-games-v1';
+    const key = specialStorageKey('xuejian-special-games-v1');
     const old = JSON.parse(localStorage.getItem(key) || '[]');
     old.unshift({ ...result, at: new Date().toISOString() });
     localStorage.setItem(key, JSON.stringify(old.slice(0, 100)));
@@ -22,7 +24,7 @@ function specialSaved(result) {
 }
 function specialMedicalMistake(point, label) {
   try {
-    const key = 'xuejian-special-mistakes-v1';
+    const key = specialStorageKey('xuejian-special-mistakes-v1');
     const old = JSON.parse(localStorage.getItem(key) || '{}');
     const id = point.id, now = Date.now();
     old[id] = { pointId: id, label, errors: (old[id]?.errors || 0) + 1, streak: 0, dueAt: now + 10 * 60 * 1000, lastAt: new Date(now).toISOString() };
@@ -33,13 +35,13 @@ function specialMedicalMistake(point, label) {
 }
 function specialMedicalErrorCount(id) {
   try {
-    const saved = JSON.parse(localStorage.getItem('xuejian-special-mistakes-v1') || '{}');
+    const saved = JSON.parse(localStorage.getItem(specialStorageKey('xuejian-special-mistakes-v1')) || '{}');
     return Number.isInteger(saved[id]?.errors) ? saved[id].errors : 0;
   } catch (_) { return null; }
 }
 function specialMedicalSuccess(point, label) {
   try {
-    const key = 'xuejian-special-mistakes-v1', old = JSON.parse(localStorage.getItem(key) || '{}'), item = old[point.id];
+    const key = specialStorageKey('xuejian-special-mistakes-v1'), old = JSON.parse(localStorage.getItem(key) || '{}'), item = old[point.id];
     if (!item) return;
     const streak = Math.min(6, (item.streak || 0) + 1), days = [1, 3, 7, 14, 30, 60][streak - 1];
     old[point.id] = { ...item, label, streak, dueAt: Date.now() + Math.max(60 * 60 * 1000, days * 86400000 / (1 + item.errors * 0.5)) };
@@ -49,7 +51,7 @@ function specialMedicalSuccess(point, label) {
 }
 function specialPriorityIds() {
   try {
-    const old = JSON.parse(localStorage.getItem('xuejian-special-mistakes-v1') || '{}');
+    const old = JSON.parse(localStorage.getItem(specialStorageKey('xuejian-special-mistakes-v1')) || '{}');
     return Object.values(old).filter((item) => item.dueAt <= Date.now()).sort((a, b) => b.errors - a.errors).map((item) => item.pointId);
   } catch (_) { return []; }
 }
@@ -104,7 +106,7 @@ function specialInlineExplanation(points) {
   return `<div class="game-answer-list">${unique.map((point) => `<details><summary>${escapeHtml(point.name)} · ${escapeHtml(specialCore.identity(point))} · 查看解析</summary><p>${escapeHtml(point.explanation || '')}</p></details>`).join('')}</div>`;
 }
 function renderSpecialMatchGame(target = '五输穴', mode = 'learn', tutorial = null) {
-  if (tutorial === null) { try { tutorial = !localStorage.getItem('xuejian-match-tutorial-done-v1'); } catch (_) { tutorial = false; } }
+  if (tutorial === null) { try { tutorial = !localStorage.getItem(specialStorageKey('xuejian-match-tutorial-done-v1')); } catch (_) { tutorial = false; } }
   if (tutorial) { target = '井'; mode = 'learn'; }
   specialStop();
   state.view = 'match';
@@ -174,7 +176,7 @@ function renderSpecialMatchGame(target = '五输穴', mode = 'learn', tutorial =
         result.cleared.forEach((p) => specialMedicalSuccess(p, target));
         session.lastExplained = result.cleared;
         session.message = `消除成功：${result.cleared.slice(0, 4).map((p) => `${p.name}（${specialCore.identity(p)}）`).join('、')}${result.cascadeRounds ? `；连击 ${result.cascadeRounds} 轮` : ''}`;
-        if (session.moves >= (tutorial ? 1 : 6)) { session.done = true; if (tutorial) { try { localStorage.setItem("xuejian-match-tutorial-done-v1", "1"); } catch (_) {} } session.message = tutorial ? '新手关完成！你已学会交换相邻穴名并凑齐三个井穴。' : session.message; if (!tutorial) specialSaved({ game: 'match', chapter: target, score: Math.max(0, session.score + (session.remaining || 0)), completed: true, seenIds: [...session.seen.keys()] }); }
+        if (session.moves >= (tutorial ? 1 : 6)) { session.done = true; if (tutorial) { try { localStorage.setItem(specialStorageKey("xuejian-match-tutorial-done-v1"), "1"); } catch (_) {} } session.message = tutorial ? '新手关完成！你已学会交换相邻穴名并凑齐三个井穴。' : session.message; if (!tutorial) specialSaved({ game: 'match', chapter: target, score: Math.max(0, session.score + (session.remaining || 0)), completed: true, seenIds: [...session.seen.keys()] }); }
         session.fx = { kind: 'settling', title: session.done ? '闯关成功！' : result.cascadeGroups ? '连击加分！' : '漂亮！', detail: session.done ? '完成本关' : `${session.moves}/${tutorial ? 1 : 6} 次有效消除`, cells, until: Date.now() + 1000 };
         paint();
       }, specialMotionDelay());
@@ -184,7 +186,7 @@ function renderSpecialMatchGame(target = '五输穴', mode = 'learn', tutorial =
   specialTimer(session, paint); paint();
 }
 function renderSpecialLinkGame(chapter = 'meridian', value = null, mode = 'learn', tutorial = null) {
-  if (tutorial === null) { try { tutorial = !localStorage.getItem('xuejian-link-tutorial-done-v1'); } catch (_) { tutorial = false; } }
+  if (tutorial === null) { try { tutorial = !localStorage.getItem(specialStorageKey('xuejian-link-tutorial-done-v1')); } catch (_) { tutorial = false; } }
   if (tutorial) { chapter = 'meridian'; value = state.data.meridians[0]; mode = 'learn'; }
   specialStop();
   state.view = 'points';
@@ -252,7 +254,7 @@ function renderSpecialLinkGame(chapter = 'meridian', value = null, mode = 'learn
             session.lastExplained = [point];
             specialMedicalSuccess(point, pairs.find((pair) => pair.id === tile.id).label);
             session.message = `连接正确：${point.name}（${specialCore.identity(point)}）。`;
-            if (session.matched === pairs.length) { session.done = true; if (tutorial) { session.message = '新手关完成！你已学会穴名连身份，以及最多两次转弯的路径规则。'; try { localStorage.setItem("xuejian-link-tutorial-done-v1", "1"); } catch (_) {} } else specialSaved({ game: 'link', chapter: `${chapter}:${value}`, score: Math.max(0, session.score + (session.remaining || 0)), completed: true, wrongIds: [...session.mistakes] }); }
+            if (session.matched === pairs.length) { session.done = true; if (tutorial) { session.message = '新手关完成！你已学会穴名连身份，以及最多两次转弯的路径规则。'; try { localStorage.setItem(specialStorageKey("xuejian-link-tutorial-done-v1"), "1"); } catch (_) {} } else specialSaved({ game: 'link', chapter: `${chapter}:${value}`, score: Math.max(0, session.score + (session.remaining || 0)), completed: true, wrongIds: [...session.mistakes] }); }
             else if (!specialCore.legalLinks(session.board).length) { session.board = specialCore.reshuffleLinkBoard(session.board); session.message += ' 剩余棋子无路可连，已自动重排。'; }
             if (tutorial && !session.done) { const next = specialCore.legalLinks(session.board)[0]; session.hint = [next.a, next.b]; }
             session.fx = { kind: 'settling', title: session.done ? '闯关成功！' : '配对完成！', detail: session.done ? '完成本关' : `${session.matched}/${pairs.length} 对已连接${mode === 'challenge' ? ' · +100 分' : ''}`, cells: [], until: Date.now() + 950 };

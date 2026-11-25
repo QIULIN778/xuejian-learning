@@ -22,12 +22,16 @@ const imagePreloadCache = new Map();
 const DAILY_PLAN_KEY = "xuejian-daily-plan-v1";
 let apiAvailable = false;
 
+function privateKey(base) {
+  return window.XuejianCloud ? `${base}-${window.XuejianCloud.user?.id || "guest"}` : base;
+}
+
 function dailyPlan() {
   const pool = state.data.points.filter(isImageQuizEligible);
   let saved = null;
-  try { saved = JSON.parse(localStorage.getItem(DAILY_PLAN_KEY) || "null"); } catch (_) { /* 重新生成当天计划 */ }
+  try { saved = JSON.parse(localStorage.getItem(privateKey(DAILY_PLAN_KEY)) || "null"); } catch (_) { /* 重新生成当天计划 */ }
   const plan = window.XuejianStudyPlan.normalize(saved, pool, state.stats);
-  if (JSON.stringify(plan) !== JSON.stringify(saved)) writeLocalStorage(DAILY_PLAN_KEY, JSON.stringify(plan));
+  if (JSON.stringify(plan) !== JSON.stringify(saved)) writeLocalStorage(privateKey(DAILY_PLAN_KEY), JSON.stringify(plan));
   return plan;
 }
 
@@ -141,7 +145,7 @@ function loadMode() {
 
 function loadFavorites() {
   try {
-    const value = JSON.parse(localStorage.getItem("xuejian-favorites-v1"));
+    const value = JSON.parse(localStorage.getItem(privateKey("xuejian-favorites-v1")));
     return Array.isArray(value) ? value : [];
   } catch (_) {
     return [];
@@ -153,6 +157,7 @@ function saveMode() {
 }
 
 function saveStats() {
+  if (window.XuejianCloud) { refreshReviewBadge(); return true; }
   const payload = JSON.stringify(state.stats);
   let saved = false;
   try {
@@ -167,7 +172,8 @@ function saveStats() {
 function specialReviewItems(now = Date.now()) {
   if (!state.data || !window.XuejianSpecialGameCore) return [];
   try {
-    const saved = JSON.parse(localStorage.getItem("xuejian-special-mistakes-v1") || "{}");
+    const mistakeKey = window.XuejianCloud?.user ? `xuejian-special-mistakes-v1-${window.XuejianCloud.user.id}` : "xuejian-special-mistakes-v1";
+    const saved = JSON.parse(localStorage.getItem(mistakeKey) || "{}");
     if (!saved || typeof saved !== "object" || Array.isArray(saved)) return [];
     const points = new Map(window.XuejianSpecialGameCore.gamePool(state.data).map((point) => [point.id, point]));
     return Object.entries(saved).flatMap(([id, item]) => {
@@ -186,7 +192,7 @@ function refreshReviewBadge() {
 }
 
 function saveFavorites() {
-  writeLocalStorage("xuejian-favorites-v1", JSON.stringify(state.favorites));
+  writeLocalStorage(privateKey("xuejian-favorites-v1"), JSON.stringify(state.favorites));
   syncToLocalApi("/api/favorites", { userId: "demo", favorites: state.favorites });
 }
 
@@ -541,7 +547,8 @@ function makeOptions(answer) {
 function startSession() {
   state.dailySession = false;
   const pool = currentPool();
-  state.queue = window.XuejianReviewScheduler.select(state.stats, pool, Math.min(10, pool.length));
+  state.queue = window.XuejianReviewScheduler.select(state.stats, pool, Math.min(state.assignmentCount || 10, pool.length));
+  state.assignmentCount = null;
   state.sessionIndex = 0;
   state.sessionCorrect = 0;
   state.sessionRetries = {};
@@ -565,19 +572,32 @@ function nextQuestion() {
   renderPractice();
 }
 
-function selectAnswer(optionId) {
-  if (state.answered || !state.current) return;
+async function selectAnswer(optionId) {
+  if (state.answered || state.submitting || !state.current) return;
+  if (window.XuejianCloud) {
+    state.submitting = true;
+    try {
+      const receipt = await window.XuejianCloud.answer(state.current.id, optionId, state.mode, state.view === "review", state.data.version);
+      state.stats = window.XuejianReviewScheduler.normalize(receipt.progress);
+    } catch (error) {
+      state.submitting = false;
+      const status = document.querySelector("#feedback-panel .feedback-copy");
+      if (status) { status.textContent = error.message.startsWith("请重试") ? error.message : "答题未保存到服务器，请重试刚才选的答案。"; status.parentElement.classList.add("visible"); }
+      return;
+    }
+    state.submitting = false;
+  }
   state.answered = true;
   state.selectedOptionId = optionId;
   const isCorrect = optionId === state.current.id;
-  window.XuejianReviewScheduler.record(state.stats, state.current.id, isCorrect);
+  if (!window.XuejianCloud) window.XuejianReviewScheduler.record(state.stats, state.current.id, isCorrect);
   if (isCorrect && state.dailySession) {
     const updated = window.XuejianStudyPlan.markCorrect(dailyPlan(), state.current.id);
-    writeLocalStorage(DAILY_PLAN_KEY, JSON.stringify(updated));
+    writeLocalStorage(privateKey(DAILY_PLAN_KEY), JSON.stringify(updated));
     state.queue = state.queue.filter((item, index) => index <= state.sessionIndex || item.id !== state.current.id);
   }
   if (isCorrect && state.view === "review") {
-    window.XuejianReviewScheduler.resolve(state.stats, state.current.id);
+    if (!window.XuejianCloud) window.XuejianReviewScheduler.resolve(state.stats, state.current.id);
     state.queue = state.queue.filter((item, index) => index <= state.sessionIndex || item.id !== state.current.id);
   }
   if (isCorrect) {
@@ -1017,6 +1037,12 @@ function renderPortal() {
   const reviewHeadline = imageWrongCount ? `${imageWrongCount} 道识图待纠正` : linkWrongCount ? `${linkWrongCount} 条连线错配记录` : "继续研习";
   const accuracy = state.stats.total ? Math.round(state.stats.correct / state.stats.total * 100) : 0;
   const coverage = imageCount ? Math.round(seenCount / imageCount * 100) : 0;
+  const meridianRoutes = state.data.meridians.map((name) => {
+    const pool = imagePoints.filter((point) => point.meridian === name);
+    return { name, wrong: pool.filter((point) => state.stats.wrongIds.includes(point.id)).length,
+      unseen: pool.filter((point) => !seenIds.has(point.id)).length, total: pool.length };
+  }).filter((row) => row.total).sort((a, b) => b.wrong - a.wrong || b.unseen / b.total - a.unseen / a.total);
+  const weakRoute = meridianRoutes[0];
   root.innerHTML = `
     <div class="portal-page">
       <section class="portal-hero" aria-labelledby="portal-title">
@@ -1033,6 +1059,10 @@ function renderPortal() {
         <ol class="daily-study-points">${todayPoints.map((point, index) => `<li class="${today.completed.includes(point.id) ? 'done' : ''}"><span>${String(index + 1).padStart(2, '0')}</span><strong>${escapeHtml(point.name)}</strong><small>${today.completed.includes(point.id) ? '已完成' : state.stats.wrongIds.includes(point.id) ? '待纠正' : state.stats.seenIds.includes(point.id) ? '再巩固' : '新穴'}</small></li>`).join('')}</ol>
         <div class="daily-study-footer"><span>计划保存在当前浏览器；换设备不会自动同步。</span><button class="primary-button" id="daily-start" type="button" ${todayRemaining.length ? '' : 'disabled'}>${todayRemaining.length ? '开始今日研习' : '今日已完成'}</button></div>
       </section>
+      <section class="dashboard-card cloud-practice-routes portal-quick-practice" aria-labelledby="quick-practice-title">
+        <div class="eyebrow">自主练习</div><h2 id="quick-practice-title">今天想怎么练？</h2><p>短练习、自测与经脉专练都用同一套识图题；答错会进入错题库。</p>
+        <div class="cloud-route-grid"><button type="button" data-portal-route="quick"><strong>五穴速练</strong><span>学习模式 · 5 题</span></button><button type="button" data-portal-route="test"><strong>二十题自测</strong><span>测试模式 · 20 题</span></button>${weakRoute ? `<button type="button" data-portal-route="weak"><strong>${escapeHtml(weakRoute.name)}专练</strong><span>${weakRoute.wrong ? `${weakRoute.wrong} 道待纠正` : weakRoute.unseen ? `${weakRoute.unseen} 穴未见过` : '复习已学穴位'} · 10 题</span></button>` : ''}</div>
+      </section>
       <section class="portal-study-desk" aria-labelledby="portal-desk-title">
         <div class="portal-desk-intro"><div class="eyebrow">本机研习书案</div><h2 id="portal-desk-title">从上次学到的地方，接着往前走。</h2><p>记录只保存在当前浏览器；换设备后不会自动同步。</p></div>
         <div class="portal-desk-progress"><div class="portal-desk-measure"><span>已见识图穴位</span><strong>${seenCount}<small> / ${imageCount}</small></strong></div><progress value="${seenCount}" max="${imageCount}" aria-label="已见识图穴位 ${seenCount}，共 ${imageCount}"></progress><span class="portal-desk-footnote">题库覆盖 ${coverage}% · 累计作答 ${state.stats.total} 题 · 正确率 ${accuracy}%</span></div>
@@ -1048,10 +1078,19 @@ function renderPortal() {
       </section>
       <section class="portal-section portal-lower" aria-label="学习路径与访问入口">
         <div class="portal-path"><div class="eyebrow">学习路径</div><h2>看规则，做练习，再复习</h2><ol><li><b>01</b><span>选经脉或关卡，先读规则与提示</span></li><li><b>02</b><span>完成题目或游戏，查看即时反馈</span></li><li><b>03</b><span>核对解析、标准定位和图片用途</span></li><li><b>04</b><span>随时重练错题，参考间隔提示安排先后</span></li></ol><button class="ghost-button" type="button" data-go-view="review">查看错题复习</button></div>
-        <div class="portal-access"><div class="eyebrow">访问方式</div><h2>电脑与手机，同一网页</h2><p>手机浏览器或微信内打开下方网址，即可使用网页版；学习记录目前只保存在本机浏览器，尚未跨设备同步。</p><div class="portal-qr-wrap"><img class="portal-qr" src="portal-qr.svg" width="188" height="188" alt="扫码打开循经知微网页版" loading="lazy" /><span>扫码打开网页版</span></div><a href="https://qiulin778.github.io/xuejian-learning/" target="_blank" rel="noopener noreferrer">qiulin778.github.io/xuejian-learning/</a><p class="portal-candidate">微信小程序已有候选代码，仍待 AppID、合法域名与真机验收。上方是网页版二维码，不是小程序码。</p><div class="portal-role-links"><button type="button" data-go-view="teacher">教师看板 · 本机演示</button><button type="button" data-go-view="admin">管理后台 · 本机演示</button></div></div>
+        <div class="portal-access"><div class="eyebrow">访问方式</div><h2>电脑与手机，同一网页</h2><p>手机浏览器或微信内打开下方网址，即可使用网页版；学习记录目前只保存在本机浏览器，尚未跨设备同步。</p><div class="portal-qr-wrap"><img class="portal-qr" src="portal-qr.svg" width="188" height="188" alt="扫码打开循经知微网页版" loading="lazy" /><span>扫码打开网页版</span></div><a href="https://qiulin778.github.io/xuejian-learning/" target="_blank" rel="noopener noreferrer">qiulin778.github.io/xuejian-learning/</a><p class="portal-candidate">当前以网页版为主。微信小程序已暂停开发，二维码打开的是网页。</p><div class="portal-role-links"><button type="button" data-go-view="teacher">教师看板 · 本机演示</button><button type="button" data-go-view="admin">管理后台 · 本机演示</button></div></div>
       </section>
     </div>`;
   root.querySelectorAll("[data-go-view]").forEach((button) => button.addEventListener("click", () => setView(button.dataset.goView)));
+  root.querySelectorAll("[data-portal-route]").forEach((button) => button.addEventListener("click", () => {
+    const route = button.dataset.portalRoute;
+    state.meridian = route === "weak" && weakRoute ? weakRoute.name : "全部经脉";
+    state.assignmentCount = route === "quick" ? 5 : route === "test" ? 20 : 10;
+    state.mode = route === "test" ? "test" : "learn";
+    saveMode();
+    document.querySelectorAll(".meridian-button").forEach((item) => item.classList.toggle("active", item.dataset.meridian === state.meridian));
+    setView("practice");
+  }));
   root.querySelector("#daily-start")?.addEventListener("click", startDailySession);
 }
 
@@ -1060,6 +1099,19 @@ function setView(view) {
   state.view = view;
   window.scrollTo(0, 0);
   document.body.dataset.view = view;
+  const cloud = window.XuejianCloud;
+  if (cloud) {
+    if (view === "account") { cloud.passwordView(); return; }
+    if (cloud.user?.forceChange) { cloud.passwordView(); return; }
+    if (view === "home") { cloud.portalView(); return; }
+    if (!cloud.user && !["home", "atlas"].includes(view)) { cloud.loginView(); return; }
+    if (view === "teacher") { if (cloud.user?.role === "teacher") cloud.teacherView(); else if (cloud.user?.role === "admin") cloud.adminView(); else cloud.loginView(); return; }
+    if (view === "admin") { if (cloud.user?.role === "admin") cloud.adminView(); else if (cloud.user?.role === "teacher") cloud.teacherView(); else cloud.loginView(); return; }
+    if (!["home", "atlas"].includes(view) && cloud.user?.role !== "student") {
+      if (cloud.user?.role === "admin") cloud.adminView(); else cloud.teacherView();
+      return;
+    }
+  }
   state.role = view === "teacher" || view === "admin" ? view : "student";
   document.querySelectorAll(".role-button").forEach((button) => {
     const active = button.dataset.role === state.role;
@@ -1086,6 +1138,7 @@ function bindNavigation() {
   document.querySelector("#portal-trigger").addEventListener("click", () => setView("home"));
   document.querySelectorAll(".nav-item").forEach((item) => item.addEventListener("click", () => setView(item.dataset.view)));
   document.querySelectorAll(".role-button").forEach((button) => button.addEventListener("click", () => {
+    if (window.XuejianCloud) { setView(button.dataset.role === "student" ? "practice" : button.dataset.role); return; }
     document.querySelectorAll(".role-button").forEach((b) => { const active = b === button; b.classList.toggle("active", active); b.setAttribute("aria-pressed", active ? "true" : "false"); });
     state.role = button.dataset.role;
     if (state.role === "teacher") setView("teacher"); else if (state.role === "admin") setView("admin"); else setView("practice");
@@ -1095,12 +1148,14 @@ function bindNavigation() {
 async function boot() {
   try {
     state.data = await loadQuestionBank();
+    if (window.XuejianCloud) await window.XuejianCloud.init();
     document.querySelector('[data-view="practice"] .nav-pill').textContent = String(state.data.points.filter(isImageQuizEligible).length);
     document.body.dataset.view = "practice";
     renderMeridianList();
     bindNavigation();
     saveStats();
-    startSession();
+    if (window.XuejianCloud) setView(window.XuejianCloud.user?.forceChange ? "account" : window.XuejianCloud.user?.role === "student" ? "practice" : window.XuejianCloud.user?.role || "home");
+    else startSession();
   } catch (error) {
     root.innerHTML = `<div class="empty-state"><div class="empty-icon">!</div><h3>题库加载失败</h3><p>请双击“启动穴见平台.bat”，或用浏览器打开 platform/public/index.html。</p></div>`;
     console.error(error);

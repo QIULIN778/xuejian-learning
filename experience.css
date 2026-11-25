@@ -74,6 +74,29 @@ button:disabled { cursor: default; opacity: .68; }
 .admin-search input:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
 .admin-review-workbench { scroll-margin-top: 20px; }
 
+/* Authenticated class workspace: quick routes, readable summaries and narrow-screen tables. */
+.cloud-practice-routes, .cloud-game-history, .cloud-audit { margin-top: 18px; }
+.cloud-practice-routes h2, .cloud-game-history h2 { margin: 0 0 8px; }
+.cloud-route-grid, .cloud-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+.cloud-route-grid button { display: grid; gap: 8px; min-height: 102px; padding: 16px; text-align: left; color: #204535; background: #f7f7ed; border: 1px solid #cfd9cb; border-radius: 16px; cursor: pointer; font: inherit; }
+.cloud-route-grid button:hover { background: #ebf3e9; border-color: #7fa48a; transform: translateY(-2px); }
+.cloud-route-grid button strong { font: 700 20px/1.3 var(--serif); }
+.cloud-route-grid button span { color: #607462; font-size: 12px; }
+.cloud-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.cloud-summary > div { display: grid; gap: 6px; padding: 15px; background: #f5f7ef; border: 1px solid #dce3d6; border-radius: 14px; }
+.cloud-summary span { color: #617262; font-size: 12px; }
+.cloud-summary strong { color: #244a39; font: 700 27px/1.2 var(--serif); }
+.cloud-method-note { color: #6a6c5c; font-size: 12px; line-height: 1.7; }
+.cloud-list-tools { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin: 16px 0 12px; }
+.cloud-list-tools label { display: grid; gap: 5px; min-width: 180px; color: #4a6052; font-size: 12px; font-weight: 700; }
+.cloud-list-tools input, .cloud-list-tools select { width: 100%; min-height: 43px; padding: 8px 10px; color: #234234; background: #fff; border: 1px solid #bbc9bc; border-radius: 9px; font: inherit; }
+.cloud-table-wrap { max-width: 100%; overflow-x: auto; }
+.cloud-table-wrap .meridian-table { min-width: 490px; }
+.cloud-score-list, .cloud-audit-list { display: grid; gap: 8px; padding: 0; margin: 10px 0 0; list-style: none; }
+.cloud-score-list li, .cloud-audit-list li { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 10px 12px; background: #f7f7f0; border-radius: 9px; font-size: 12px; }
+.cloud-score-list li strong, .cloud-audit-list li strong { color: #285741; }
+.cloud-score-list li time, .cloud-audit-list li time { margin-left: auto; color: #768176; }
+
 body[data-view="practice"] .question-card, body[data-view="review"] .question-card { border-top: 4px solid #567759; }
 body[data-view="points"] .game-result { border-top: 4px solid #37887d; }
 body[data-view="match"] .game-result { border-top: 4px solid #af7048; }
@@ -82,6 +105,9 @@ body[data-view="match"] .game-result { border-top: 4px solid #af7048; }
   .daily-study-points { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 700px) {
+  .cloud-route-grid, .cloud-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cloud-list-tools label { flex: 1 1 100%; }
+  .cloud-route-grid button { min-height: 92px; }
   .daily-study { gap: 16px; padding: 22px 18px; }
   .daily-study-heading { align-items: start; }
   .daily-study-heading h2 { font-size: 27px; }

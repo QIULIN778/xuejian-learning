@@ -19,6 +19,12 @@
     value.seenIds = Array.isArray(value.seenIds) ? value.seenIds : [];
     value.review = value.review && typeof value.review === 'object' ? value.review : {};
     for (const id of value.wrongIds) if (!value.review[id]) value.review[id] = { errors: 1, streak: 0, lastAnsweredAt: 0, dueAt: 0 };
+    // Migrate pre-0.3.53 history once. Thereafter wrongIds is the active correction bank.
+    if (value.wrongBankSchema !== 'active-v1') {
+      value.wrongIds = [...value.wrongIds, ...Object.keys(value.review).filter((id) => Number(value.review[id]?.errors) > 0)];
+      value.wrongBankSchema = 'active-v1';
+    }
+    value.wrongIds = [...new Set(value.wrongIds.filter((id) => Number(value.review[id]?.errors) > 0))];
     return value;
   }
   function record(progress, id, correct, now = Date.now()) {
@@ -26,13 +32,19 @@
     const errors = (Number(previous.errors) || 0) + (correct ? 0 : 1);
     const streak = correct ? Math.min(6, (Number(previous.streak) || 0) + 1) : 0;
     // Fixed review intervals are an application policy, not an exact Ebbinghaus formula.
-    const interval = correct ? Math.max(60 * 60 * 1000, Math.round(INTERVALS[streak - 1] / (1 + errors * 0.5))) : 10 * 60 * 1000;
+    // A wrong answer enters the review queue immediately. Successful recall schedules the next interval.
+    const interval = correct ? Math.max(60 * 60 * 1000, Math.round(INTERVALS[streak - 1] / (1 + errors * 0.5))) : 0;
     data.review[id] = { errors, streak, lastAnsweredAt: now, dueAt: now + interval };
     data.total += 1;
     if (correct) data.correct += 1;
     if (!data.seenIds.includes(id)) data.seenIds.push(id);
-    if (correct) data.wrongIds = data.wrongIds.filter((item) => item !== id);
-    else if (!data.wrongIds.includes(id)) data.wrongIds.push(id);
+    if (!correct && !data.wrongIds.includes(id)) data.wrongIds.push(id);
+    return data;
+  }
+  function resolve(progress, id) {
+    const data = normalize(progress);
+    data.wrongIds = data.wrongIds.filter((item) => item !== id);
+    if (data.review[id]) data.review[id].errors = 0;
     return data;
   }
   function due(record, now = Date.now()) { return Boolean(record && Number(record.dueAt) <= now); }
@@ -41,7 +53,7 @@
     if (!item) return 10;
     const errors = Number(item.errors) || 0;
     if (due(item, now)) return 1000 + errors * 100 + Math.min(100, Math.max(0, (now - item.dueAt) / DAY));
-    if (data.wrongIds.includes(point.id)) return 100 + errors * 10;
+    // A corrected answer keeps its schedule in ordinary practice without staying in the wrong bank.
     return Math.max(0, 5 - (Number(item.streak) || 0));
   }
   function select(progress, points, count = 10, now = Date.now(), random = Math.random) {
@@ -49,7 +61,7 @@
     pool.sort((a, b) => b.score - a.score || a.tie - b.tie);
     return pool.slice(0, count).map((item) => item.point);
   }
-  const api = { INTERVALS, remapId, normalize, record, due, priority, select };
+  const api = { INTERVALS, remapId, normalize, record, resolve, due, priority, select };
   global.XuejianReviewScheduler = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window === 'undefined' ? globalThis : window);
